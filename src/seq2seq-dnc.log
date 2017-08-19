@@ -1,0 +1,66 @@
+2017-08-19 21:15:21,347 - seq2seq-dnc - INFO - Creating source corpus dictionary...
+2017-08-19 21:15:21,837 - seq2seq-dnc - INFO - Creating target corpus dictionary...
+2017-08-19 21:15:22,421 - seq2seq-dnc - INFO - Loading shards...
+2017-08-19 21:15:22,422 - seq2seq-dnc - INFO - Processing shard 0
+2017-08-19 21:15:22,478 - seq2seq-dnc - INFO - Processing shard 1
+2017-08-19 21:15:22,527 - seq2seq-dnc - INFO - Processing shard 2
+2017-08-19 21:15:22,577 - seq2seq-dnc - INFO - Processing shard 3
+2017-08-19 21:15:22,623 - seq2seq-dnc - INFO - Processing shard 4
+2017-08-19 21:15:22,670 - seq2seq-dnc - INFO - Processing shard 5
+2017-08-19 21:15:22,716 - seq2seq-dnc - INFO - Processing shard 6
+2017-08-19 21:15:22,762 - seq2seq-dnc - INFO - Processing shard 7
+2017-08-19 21:15:22,809 - seq2seq-dnc - INFO - Processing shard 8
+2017-08-19 21:15:22,855 - seq2seq-dnc - INFO - Processing shard 9
+2017-08-19 21:15:22,902 - seq2seq-dnc - INFO - Processing shard 10
+2017-08-19 21:15:22,955 - seq2seq-dnc - INFO - Processing shard 11
+2017-08-19 21:15:23,005 - seq2seq-dnc - INFO - Processing shard 12
+2017-08-19 21:15:23,061 - seq2seq-dnc - INFO - Processing shard 13
+2017-08-19 21:15:23,113 - seq2seq-dnc - INFO - Processing shard 14
+2017-08-19 21:15:23,162 - seq2seq-dnc - INFO - Processing shard 15
+2017-08-19 21:15:23,228 - seq2seq-dnc - INFO - Processing shard 16
+2017-08-19 21:15:23,276 - seq2seq-dnc - INFO - Processing shard 17
+2017-08-19 21:15:23,333 - seq2seq-dnc - INFO - Processing shard 18
+2017-08-19 21:15:23,390 - seq2seq-dnc - INFO - Processing shard 19
+2017-08-19 21:15:23,443 - seq2seq-dnc - INFO - Processing shard 20
+2017-08-19 21:15:23,507 - seq2seq-dnc - INFO - Processing shard 21
+2017-08-19 21:15:23,560 - seq2seq-dnc - INFO - Processing shard 22
+2017-08-19 21:15:23,624 - seq2seq-dnc - INFO - Processing shard 23
+2017-08-19 21:15:23,682 - seq2seq-dnc - INFO - Processing shard 24
+2017-08-19 21:15:23,733 - seq2seq-dnc - INFO - Processing shard 25
+2017-08-19 21:15:23,788 - seq2seq-dnc - INFO - Processing shard 26
+2017-08-19 21:15:23,844 - seq2seq-dnc - INFO - Processing shard 27
+2017-08-19 21:15:23,895 - seq2seq-dnc - INFO - Processing shard 28
+2017-08-19 21:15:23,947 - seq2seq-dnc - INFO - Processing shard 29
+2017-08-19 21:16:17,616 - seq2seq-dnc - INFO - Creating source corpus dictionary...
+2017-08-19 21:16:18,128 - seq2seq-dnc - INFO - Creating target corpus dictionary...
+2017-08-19 21:16:18,688 - seq2seq-dnc - INFO - Loading shards...
+2017-08-19 21:16:18,688 - seq2seq-dnc - INFO - Processing shard 0
+2017-08-19 21:16:18,740 - seq2seq-dnc - INFO - Processing shard 1
+2017-08-19 21:16:18,791 - seq2seq-dnc - INFO - Processing shard 2
+2017-08-19 21:16:18,841 - seq2seq-dnc - INFO - Processing shard 3
+2017-08-19 21:16:18,895 - seq2seq-dnc - INFO - Processing shard 4
+2017-08-19 21:16:18,943 - seq2seq-dnc - INFO - Processing shard 5
+2017-08-19 21:16:18,990 - seq2seq-dnc - INFO - Processing shard 6
+2017-08-19 21:16:19,039 - seq2seq-dnc - INFO - Processing shard 7
+2017-08-19 21:16:19,087 - seq2seq-dnc - INFO - Processing shard 8
+2017-08-19 21:16:19,133 - seq2seq-dnc - INFO - Processing shard 9
+2017-08-19 21:16:19,180 - seq2seq-dnc - INFO - Processing shard 10
+2017-08-19 21:16:19,227 - seq2seq-dnc - INFO - Processing shard 11
+2017-08-19 21:16:19,272 - seq2seq-dnc - INFO - Processing shard 12
+2017-08-19 21:16:19,337 - seq2seq-dnc - INFO - Processing shard 13
+2017-08-19 21:16:19,388 - seq2seq-dnc - INFO - Processing shard 14
+2017-08-19 21:16:19,441 - seq2seq-dnc - INFO - Processing shard 15
+2017-08-19 21:16:19,496 - seq2seq-dnc - INFO - Processing shard 16
+2017-08-19 21:16:19,552 - seq2seq-dnc - INFO - Processing shard 17
+2017-08-19 21:16:19,600 - seq2seq-dnc - INFO - Processing shard 18
+2017-08-19 21:16:19,648 - seq2seq-dnc - INFO - Processing shard 19
+2017-08-19 21:16:19,696 - seq2seq-dnc - INFO - Processing shard 20
+2017-08-19 21:16:19,745 - seq2seq-dnc - INFO - Processing shard 21
+2017-08-19 21:16:19,794 - seq2seq-dnc - INFO - Processing shard 22
+2017-08-19 21:16:19,849 - seq2seq-dnc - INFO - Processing shard 23
+2017-08-19 21:16:19,899 - seq2seq-dnc - INFO - Processing shard 24
+2017-08-19 21:16:19,952 - seq2seq-dnc - INFO - Processing shard 25
+2017-08-19 21:16:20,003 - seq2seq-dnc - INFO - Processing shard 26
+2017-08-19 21:16:20,054 - seq2seq-dnc - INFO - Processing shard 27
+2017-08-19 21:16:20,105 - seq2seq-dnc - INFO - Processing shard 28
+2017-08-19 21:16:20,167 - seq2seq-dnc - INFO - Processing shard 29
