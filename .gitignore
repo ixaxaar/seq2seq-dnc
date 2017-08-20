@@ -9,3 +9,6 @@ multi-bleu.perl
 data/
 build/
 venv/
+__pycache__/
+*.lang
+*.log
