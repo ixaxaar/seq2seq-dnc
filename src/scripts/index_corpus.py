@@ -4,16 +4,6 @@ import argparse
 
 from util import *
 
-parser = argparse.ArgumentParser(description='''
-  Language distionary creator
-  Creates a frequency-counted dictionary from a corpus
-''')
-parser.add_argument('-corpus', required=True,
-                    help='Path to the text corpus to index')
-parser.add_argument('-name', required=True, help='Name of this lang')
-opts = parser.parse_args()
-
-
 def index_corpus(name, corpus):
     '''Index a corpus to form a dictionary
 
@@ -28,4 +18,13 @@ def index_corpus(name, corpus):
     l.save(name + '.lang')
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='''
+      Language distionary creator
+      Creates a frequency-counted dictionary from a corpus
+    ''')
+    parser.add_argument('-corpus', required=True,
+                        help='Path to the text corpus to index')
+    parser.add_argument('-name', required=True, help='Name of this lang')
+    opts = parser.parse_args()
+
     index_corpus(opts.name, opts.corpus)

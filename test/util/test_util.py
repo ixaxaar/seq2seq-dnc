@@ -8,14 +8,21 @@ import os
 sys.path.append('./src/')
 
 from util import *
-from seq2seq import *
 from scripts.index_corpus import index_corpus
 
-from torch.nn.utils.rnn import pad_packed_sequence as pad
-from torch.nn.utils.rnn import pack_padded_sequence as pack
+
+def test_indexing():
+    index_corpus('en-test', './data/multi30k/train.en')
+    en_lang = Lang('en-test')
+    en_lang.load('./en-test.lang')
+
+    assert os.path.isfile('en-test.lang'), \
+        'Should create a dictionary for the ./data/multi30k/train.en corpus'
+
+    assert en_lang.n_words == 9792
 
 
-def test_encoder():
+def test_pack_batch():
     index_corpus('en-test', './data/multi30k/train.en')
     index_corpus('de-test', './data/multi30k/train.de')
     en_lang = Lang('./en-test.lang')
@@ -30,15 +37,12 @@ def test_encoder():
     idx, batch, tgt, slen, tlen = pack_batch(
         list(zip(x, y)), en_lang, de_lang, -1)
 
-    source_vocab_size = en_lang.n_words
-    target_vocab_size = de_lang.n_words
-    e = Encoder(1024, 2, vocab_size=source_vocab_size)
-    o, h = e(batch, slen)
-    y, lengths = pad(o, batch_first=True)
+    assert len(idx) == len(x)
+    assert len(slen) == len(x)
+    assert len(tlen) == len(x)
+    assert type(batch) is var
+    assert batch.size() == T.Size([300, 100])
 
-    assert y.size() == T.Size([300, 14, 1024]), \
-        'Outputs should have size nr_batches * max_len * nr_hidden'
-    assert h.size() == T.Size([2, 300, 1024]), \
-        'Hidden should have size  nr_layers * nr_batches * nr_hidden'
-
-
+    # w_s = en_lang.trim(3)
+    # w_t = de_lang.trim(3)
+    # assert

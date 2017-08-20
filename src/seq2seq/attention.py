@@ -4,7 +4,11 @@ import torch.nn as nn
 import torch as T
 import torch.nn.functional as F
 from torch.autograd import Variable as var
+from torch.nn.utils.rnn import PackedSequence
+
 import numpy as np
+
+from util import *
 
 from torch.nn.utils.rnn import pad_packed_sequence as pad
 from torch.nn.utils.rnn import pack_padded_sequence as pack
@@ -26,12 +30,12 @@ class Attn(nn.Module):
     def forward(self, hidden, encoder_outputs):
         lengths = None
         if type(encoder_outputs) is PackedSequence:
-            encoder_outputs, lengths = pad_packed_sequence(
+            encoder_outputs, lengths = pad(
                 encoder_outputs, batch_first=True)
         else:
             lengths = [len(x) for x in encoder_outputs]
 
-        batch_size = self.encoder_outputs.size()[0]
+        batch_size = encoder_outputs.size()[0]
         attns = cuda(T.zeros(batch_size, max(lengths)))
         lengths = cuda(T.zeros(max(lengths), 1))
 

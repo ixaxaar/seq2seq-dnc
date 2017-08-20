@@ -14,7 +14,7 @@ from util.cuda import *
 from .special import *
 
 
-def pad(seq, max_len=MAX_LENGTH):
+def pad_seq(seq, max_len=MAX_LENGTH):
     '''Pad a sequence
 
     Pad a sequence upto a maximum length
@@ -50,7 +50,7 @@ def mk_sentence(sentence, lang):
     Returns:
         numpy.ndarray --
     '''
-    return pad(np.array([SOS] + [lang.word2index[w] if w in lang.word2index else UNK for w in sentence] + [EOS], dtype='float32'))
+    return pad_seq(np.array([SOS] + [lang.word2index[w] if w in lang.word2index else UNK for w in sentence] + [EOS], dtype='float32'))
 
 
 def mk_target(target, idx):
