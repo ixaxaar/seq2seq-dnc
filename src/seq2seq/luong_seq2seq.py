@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
-import pytest
+import numpy as np
+import torch.nn as nn
+import torch as T
+from torch.autograd import Variable as var
 import numpy as np
 
 from util import *

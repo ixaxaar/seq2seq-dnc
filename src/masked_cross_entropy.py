@@ -12,20 +12,20 @@ from torch.nn.utils.rnn import pack_padded_sequence as pack
 from util import *
 
 
-def sequence_mask(sequence_length, max_len=None):
+def sequence_mask(sequence_length, max_len=None, gpu_id=-1):
     if max_len is None:
         max_len = sequence_length.data.max()
     batch_size = sequence_length.size(0)
     seq_range = T.arange(0, max_len).long()
     seq_range_expand = seq_range.unsqueeze(0).expand(batch_size, max_len)
-    seq_range_expand = var(seq_range_expand).cuda(gpu_id)
+    seq_range_expand = cuda(seq_range_expand, gpu_id=gpu_id)
 
     seq_length_expand = (sequence_length.unsqueeze(
         1).expand_as(seq_range_expand))
     return seq_range_expand < seq_length_expand
 
 
-def masked_cross_entropy(logits, target, length):
+def masked_cross_entropy(logits, target, length, gpu_id=-1):
     """
     Args:
         logits: A Variable containing a FloatTensor of size
@@ -40,7 +40,6 @@ def masked_cross_entropy(logits, target, length):
     Returns:
         loss: An average loss value masked by the length.
     """
-    length = var(T.LongTensor(length)).cuda(gpu_id)
     # logits_flat: (batch * max_len, num_classes)
     logits_flat = logits.view(-1, logits.size(-1))
     # log_probs_flat: (batch * max_len, num_classes)
@@ -52,7 +51,7 @@ def masked_cross_entropy(logits, target, length):
     # losses: (batch, max_len)
     losses = losses_flat.view(*target.size())
     # mask: (batch, max_len)
-    mask = sequence_mask(sequence_length=length, max_len=target.size(1))
+    mask = sequence_mask(sequence_length=length, max_len=target.size(1), gpu_id=gpu_id)
     losses = losses * mask.float()
     loss = losses.sum() / length.float().sum()
     return loss
