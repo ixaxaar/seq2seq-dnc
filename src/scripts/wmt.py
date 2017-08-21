@@ -25,7 +25,7 @@ def processWMT(which, where, src, targ, shard_size=10000, vectorize_gpu=None):
     targ_lang = Lang(targ)
     sentence_pairs = []
 
-    if vectorize_gpu:
+    if vectorize_gpu is not None:
         log.info('Creating source corpus dictionary...')
         src_lang = index_corpus(src, where, which + '.' + src)
         log.info('Creating target corpus dictionary...')

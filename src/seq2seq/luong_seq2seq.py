@@ -25,7 +25,7 @@ class LuongSeq2Seq(nn.Module):
         hidden_size=1024,
         teacher_forcing_ratio=0.2,
         attention_type='general',
-        cuda_device=-1
+        gpu_id=-1
     ):
         super(LuongSeq2Seq, self).__init__()
 
@@ -35,7 +35,7 @@ class LuongSeq2Seq(nn.Module):
         self.hidden_size = hidden_size
         self.teacher_forcing_ratio = teacher_forcing_ratio
         self.attention_type = attention_type
-        self.cuda_device = cuda_device
+        self.gpu_id = gpu_id
 
         self.encoder = Encoder(
             hidden_size,
@@ -46,11 +46,12 @@ class LuongSeq2Seq(nn.Module):
             attention_type,
             hidden_size,
             n_layers,
-            vocab_size=targ_lang.n_words
+            vocab_size=targ_lang.n_words,
+            gpu_id=gpu_id
         )
-        if cuda_device != -1:
-            self.encoder.cuda(cuda_device)
-            self.decoder.cuda(cuda_device)
+        if gpu_id != -1:
+            self.encoder.cuda(gpu_id)
+            self.decoder.cuda(gpu_id)
 
     def _teacher_force(self):
         return np.random.choice([False, True], p=[1 - self.teacher_forcing_ratio, self.teacher_forcing_ratio])
@@ -64,11 +65,11 @@ class LuongSeq2Seq(nn.Module):
         encoded, _ = pad(encoded, batch_first=True)
         outputs = cuda(
             T.zeros(batch_size, max(target_lengths), self.decoder.output_size),
-            gpu_id=self.cuda_device
+            gpu_id=self.gpu_id
         )
         input = cudavec(
             np.array([SOS] * batch_size, dtype=np.long),
-            gpu_id=self.cuda_device
+            gpu_id=self.gpu_id
         ).unsqueeze(1)
 
         # manually unrolled

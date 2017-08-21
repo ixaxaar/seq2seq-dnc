@@ -18,13 +18,14 @@ from util import *
 
 class LuongAttnDecoderRNN(nn.Module):
 
-    def __init__(self, attn_model, hidden_size, n_layers=1, dropout_p=0.1, vocab_size=50000):
+    def __init__(self, attn_model, hidden_size, n_layers=1, dropout_p=0.1, vocab_size=50000, gpu_id=-1):
         super(LuongAttnDecoderRNN, self).__init__()
         self.attn_model = attn_model
         self.hidden_size = hidden_size
         self.dropout_p = dropout_p
         self.n_layers = n_layers
         self.output_size = vocab_size
+        self.gpu_id = gpu_id
 
         self.embedding = nn.Embedding(vocab_size, hidden_size, PAD)
         self.embedding_dropout = nn.Dropout(dropout_p)
@@ -34,7 +35,7 @@ class LuongAttnDecoderRNN(nn.Module):
             n_layers,
             dropout=dropout_p, batch_first=True
         )
-        self.attn = Attn(attn_model, hidden_size)
+        self.attn = Attn(attn_model, hidden_size, gpu_id=self.gpu_id)
         self.concat = nn.Linear(hidden_size * 2, hidden_size)
         self.output = nn.Linear(hidden_size, vocab_size)
 

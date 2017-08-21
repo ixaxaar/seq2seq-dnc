@@ -18,10 +18,12 @@ def sequence_mask(sequence_length, max_len=None, gpu_id=-1):
     batch_size = sequence_length.size(0)
     seq_range = T.arange(0, max_len).long()
     seq_range_expand = seq_range.unsqueeze(0).expand(batch_size, max_len)
-    seq_range_expand = cuda(seq_range_expand, gpu_id=gpu_id)
+    if gpu_id != -1:
+        seq_range_expand = var(seq_range_expand.cuda(gpu_id))
+    else:
+        seq_range_expand = var(seq_range_expand)
 
-    seq_length_expand = (sequence_length.unsqueeze(
-        1).expand_as(seq_range_expand))
+    seq_length_expand = (sequence_length.unsqueeze(1).expand_as(seq_range_expand))
     return seq_range_expand < seq_length_expand
 
 

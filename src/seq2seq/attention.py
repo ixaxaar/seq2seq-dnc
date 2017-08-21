@@ -16,10 +16,11 @@ from torch.nn.utils.rnn import pack_padded_sequence as pack
 
 class Attn(nn.Module):
 
-    def __init__(self, method, hidden_size, max_length=MAX_LENGTH):
+    def __init__(self, method, hidden_size, max_length=MAX_LENGTH, gpu_id=-1):
         super(Attn, self).__init__()
         self.method = method
         self.hidden_size = hidden_size
+        self.gpu_id = gpu_id
 
         if self.method == 'general':
             self.attn = nn.Linear(hidden_size, hidden_size)
@@ -36,8 +37,8 @@ class Attn(nn.Module):
             lengths = [len(x) for x in encoder_outputs]
 
         batch_size = encoder_outputs.size()[0]
-        attns = cuda(T.zeros(batch_size, max(lengths)))
-        lengths = cuda(T.zeros(max(lengths), 1))
+        attns = cuda(T.zeros(batch_size, max(lengths)), gpu_id=self.gpu_id)
+        lengths = cuda(T.zeros(max(lengths), 1), gpu_id=self.gpu_id)
 
         if self.method == 'dot':
             attns = T.baddbmm(
