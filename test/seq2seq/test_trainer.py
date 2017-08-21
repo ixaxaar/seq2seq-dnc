@@ -30,7 +30,7 @@ def test_luongseq2seqtrainer():
     losses, last_attention = trainer(0, batch_size=128)
 
     print(losses)
-    assert len(losses) == ((512/128) + 1)
+    assert len(losses) == ((5120/128) + 1)
 
 
 

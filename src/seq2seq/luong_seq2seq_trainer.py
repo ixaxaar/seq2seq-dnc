@@ -30,7 +30,7 @@ class LuongSeq2SeqTrainer:
         attention_type='general',
         learning_rate=0.001,
         gradient_clip=10.0,
-        gpu_id=0
+        gpu_id=-1
     ):
 
         self.path = data_path
