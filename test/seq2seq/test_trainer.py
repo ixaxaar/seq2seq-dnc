@@ -16,7 +16,7 @@ def test_luongseq2seqtrainer():
     which = 'train'
     src = 'en'
     targ = 'de'
-    shard_size = 512
+    shard_size = 5120
     vectorize_gpu = -1
     processWMT(which, where, src, targ, shard_size, vectorize_gpu)
 

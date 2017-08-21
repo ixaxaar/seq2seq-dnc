@@ -78,7 +78,7 @@ class LuongSeq2SeqTrainer:
 
         batches = math.ceil(len(indexes) / batch_size)
         for b in range(batches):
-            log.info('Training batch '+str(b))
+            log.debug('Training batch '+str(b))
             # try:
             # prepare batch
             sort_order = indexes[b:b + batch_size]

@@ -77,14 +77,14 @@ def processWMT(which, where, src, targ, shard_size=10000, vectorize_gpu=None):
 
                     # Save the shard
                     with open(where + '/sentence-pairs-' + src + '-' + targ + '-shard-' + str(nr_shard) + '.pickle', 'wb') as pairs:
-                        pickle.dump(sentence_pairs, pairs,
+                        T.save(sentence_pairs, pairs,
                                     pickle.HIGHEST_PROTOCOL)
                     sentence_pairs = []
                     nr_shard += 1
 
         # Save the dictionaries
-        src_lang.save(where + '/' + src + '-lang-' + which + '.dict')
-        targ_lang.save(where + '/' + targ + '-lang-' + which + '.dict')
+        src_lang.save(where + '/' + src + '.lang')
+        targ_lang.save(where + '/' + targ + '.lang')
 
 
 if __name__ == '__main__':

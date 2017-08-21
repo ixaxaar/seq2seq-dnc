@@ -31,6 +31,7 @@ def train_wmt_multimodal():
     attns = []
     for epoch in range(epochs):
         for nr_shard in range(int(nr_shards)):
+            log.info('Training epoch '+str(epoch)+' shard '+str(nr_shard))
             l, last_attention = trainer(nr_shard, batch_size=128)
             print(l)
             losses.append(l)
