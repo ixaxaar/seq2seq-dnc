@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import math
+import math, re
 
 import numpy as np
 import torch.nn as nn
@@ -65,6 +65,55 @@ class LuongSeq2SeqTrainer(nn.Module):
         l = Lang(name)
         l.load(path)
         return l
+
+    def evaluate(self, where, which, batch_size=64, shard_size=1000, save=False):
+        shard = self._load_shard(0, which)
+        indexes = shard['indexes']
+        source = shard['source']
+        target = shard['target']
+        source_lengths = shard['source_lengths']
+        target_lengths = shard['target_lengths']
+
+        self.model.eval()
+
+        batches = math.ceil(shard_size / batch_size)
+        predicted_sentences = []
+
+        for b in range(batches):
+            log.debug('Evalutaing ' + which + ' batch ' + str(b))
+            # try:
+            # prepare batch
+            sort_order = indexes[b:b + batch_size]
+            s_packed = source[b:b + batch_size]
+            t_packed = target[b:b + batch_size]
+            s_lens = source_lengths[b:b + batch_size]
+            t_lens = target_lengths[b:b + batch_size]
+
+            predicted, attn = self.model(
+                s_packed, t_packed, s_lens, t_lens)
+
+            # scores
+            _, predicted = predicted.topk(1)
+            predicted = predicted.data.cpu().numpy()
+
+            # Top 1 prediction
+            for x in range(predicted.shape[0]):
+                s = []
+                for y in predicted[x]:
+                    s.append( self.targ_lang.index2word[y[0]] )
+                predicted_sentences.append(' '.join(s))
+
+        predicted_sentences = [ re.sub('\s+', ' ', p.replace('SOS', ' ').replace('EOS', ' ')) for p in predicted_sentences ]
+
+        # Remove special tokens and write into a file
+        if save:
+            with open(where+'/'+which+'-predicted.txt', 'w') as out:
+                for p in predicted_sentences:
+                    out.write(p)
+                    out.write('\n')
+
+        self.model.train()
+        return predicted_sentences
 
     def forward(self, nr_shard, batch_size=64):
         losses = [0.0]
