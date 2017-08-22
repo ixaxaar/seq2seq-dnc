@@ -35,6 +35,7 @@ class LuongAttnDecoderRNN(nn.Module):
             n_layers,
             dropout=dropout_p, batch_first=True
         )
+        self.gru.flatten_parameters()
         self.attn = Attn(attn_model, hidden_size, gpu_id=self.gpu_id)
         self.concat = nn.Linear(hidden_size * 2, hidden_size)
         self.output = nn.Linear(hidden_size, vocab_size)

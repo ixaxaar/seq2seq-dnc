@@ -28,6 +28,7 @@ class Encoder(nn.Module):
             dropout=dropout_p,
             batch_first=True
         )
+        self.gru.flatten_parameters()
 
     def forward(self, source, source_lengths, hidden=None):
         embedded = self.embedding(source)
