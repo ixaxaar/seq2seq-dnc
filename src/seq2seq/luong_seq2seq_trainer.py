@@ -57,8 +57,8 @@ class LuongSeq2SeqTrainer(nn.Module):
         self.decoder_optimizer = \
             optim.Adam(self.model.decoder.parameters(), lr=learning_rate)
 
-    def _load_shard(self, nr_shard):
-        with open(self.path + '/sentence-pairs-' + self.src + '-' + self.targ + '-shard-' + str(nr_shard) + '.t7', 'rb') as pairs:
+    def _load_shard(self, nr_shard, which='train'):
+        with open(self.path + '/sentence-pairs-' + which + '-' + self.src + '-' + self.targ + '-shard-' + str(nr_shard) + '.t7', 'rb') as pairs:
             return T.load(pairs)
 
     def _load_lang(self, name, path):
