@@ -53,6 +53,9 @@ class LuongSeq2Seq(nn.Module):
             self.encoder.cuda(gpu_id)
             self.decoder.cuda(gpu_id)
 
+    # def save(where):
+    #     self.encoder.
+
     def _teacher_force(self):
         return np.random.choice([False, True], p=[1 - self.teacher_forcing_ratio, self.teacher_forcing_ratio])
 

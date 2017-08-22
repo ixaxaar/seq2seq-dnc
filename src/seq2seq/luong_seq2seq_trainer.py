@@ -15,7 +15,7 @@ from .luong_seq2seq import LuongSeq2Seq
 from loss import MaskedCrossEntropy
 
 
-class LuongSeq2SeqTrainer:
+class LuongSeq2SeqTrainer(nn.Module):
 
     def __init__(
         self,
@@ -32,6 +32,7 @@ class LuongSeq2SeqTrainer:
         gradient_clip=10.0,
         gpu_id=-1
     ):
+        super(LuongSeq2SeqTrainer, self).__init__()
 
         self.path = data_path
         self.src = src
@@ -45,6 +46,7 @@ class LuongSeq2SeqTrainer:
         self.gpu_id = gpu_id
         self.learning_rate = learning_rate
         self.gradient_clip = gradient_clip
+        self.last_loss = 0
 
         self.model = LuongSeq2Seq(self.src_lang, self.targ_lang, self.n_layers, self.hidden_size,
                                   self.teacher_forcing_ratio, self.attention_type, self.gpu_id)
@@ -64,7 +66,7 @@ class LuongSeq2SeqTrainer:
         l.load(path)
         return l
 
-    def __call__(self, nr_shard, batch_size=64):
+    def forward(self, nr_shard, batch_size=64):
         losses = [0.0]
         last_attn = None
 
@@ -78,7 +80,7 @@ class LuongSeq2SeqTrainer:
 
         batches = math.ceil(len(indexes) / batch_size)
         for b in range(batches):
-            log.debug('Training batch '+str(b))
+            log.debug('Training batch ' + str(b))
             # try:
             # prepare batch
             sort_order = indexes[b:b + batch_size]
@@ -91,7 +93,8 @@ class LuongSeq2SeqTrainer:
             self.decoder_optimizer.zero_grad()
             # forward pass
             last_attn = None
-            predicted, last_attn = self.model(s_packed, t_packed, s_lens, t_lens)
+            predicted, last_attn = self.model(
+                s_packed, t_packed, s_lens, t_lens)
             # evaluate
             loss = self.loss(
                 predicted.contiguous(),
@@ -109,7 +112,8 @@ class LuongSeq2SeqTrainer:
             # update parameters
             self.encoder_optimizer.step()
             self.decoder_optimizer.step()
-            losses.append(loss.data.cpu().numpy()[0])
+            losses.append(float(loss.data.cpu().numpy()[0]))
+            self.last_loss = losses[len(losses) - 1]
             # except Exception as e:
             #     print('Exception occured')
             #     print(e)
