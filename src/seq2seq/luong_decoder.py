@@ -16,9 +16,10 @@ from torch.nn.utils.rnn import pack_padded_sequence as pack
 
 from util import *
 
+
 class LuongAttnDecoderRNN(nn.Module):
 
-    def __init__(self, attn_model, hidden_size, n_layers=1, dropout_p=0.1, vocab_size=50000, gpu_id=-1):
+    def __init__(self, attn_model, hidden_size, n_layers=1, dropout_p=0.3, vocab_size=50000, gpu_id=-1):
         super(LuongAttnDecoderRNN, self).__init__()
         self.attn_model = attn_model
         self.hidden_size = hidden_size
@@ -29,13 +30,15 @@ class LuongAttnDecoderRNN(nn.Module):
 
         self.embedding = nn.Embedding(vocab_size, hidden_size, PAD)
         self.embedding_dropout = nn.Dropout(dropout_p)
-        self.gru = nn.GRU(
+        self.rnn = nn.LSTM(
             hidden_size,
             hidden_size,
             n_layers,
-            dropout=dropout_p, batch_first=True
+            dropout=dropout_p,
+            batch_first=True,
+            bidirectional=True
         )
-        self.gru.flatten_parameters()
+        self.rnn.flatten_parameters()
         self.attn = Attn(attn_model, hidden_size, gpu_id=self.gpu_id)
         self.concat = nn.Linear(hidden_size * 2, hidden_size)
         self.output = nn.Linear(hidden_size, vocab_size)
@@ -45,7 +48,7 @@ class LuongAttnDecoderRNN(nn.Module):
         embedded = self.embedding(input)
         embedded = self.embedding_dropout(embedded)
 
-        dec_outs, hidden = self.gru(
+        dec_outs, hidden = self.rnn(
             pack(embedded, [1] * batch_size, batch_first=True),
             hidden
         )
@@ -53,9 +56,15 @@ class LuongAttnDecoderRNN(nn.Module):
         # batch_size * 1 * hidden_size
         dec_outs, lengths = pad(dec_outs, batch_first=True)
 
+        # sum the bidirectional outputs
+        dec_outs = dec_outs[:, :, :self.hidden_size] + \
+            dec_outs[:, :, self.hidden_size:]
+
+        # calculate the attention context vector
         attn_weights = self.attn(dec_outs, encoder_outputs)
         context = attn_weights.bmm(encoder_outputs)
 
+        # Finally concatenate and pass through a linear layer
         concated_input = T.cat((dec_outs, context), 2)
         concated_out = self.concat(concated_input.squeeze(1)).unsqueeze(1)
         concat_output = self.output(F.tanh(concated_out))

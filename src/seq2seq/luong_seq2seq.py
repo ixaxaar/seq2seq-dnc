@@ -65,7 +65,6 @@ class LuongSeq2Seq(nn.Module):
         hidden = hidden[:self.decoder.n_layers]
         batch_size = len(source)
 
-        encoded, _ = pad(encoded, batch_first=True)
         outputs = cuda(
             T.zeros(batch_size, max(target_lengths), self.decoder.output_size),
             gpu_id=self.gpu_id

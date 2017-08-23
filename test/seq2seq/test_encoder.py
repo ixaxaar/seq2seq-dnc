@@ -33,8 +33,7 @@ def test_encoder():
     source_vocab_size = en_lang.n_words
     target_vocab_size = de_lang.n_words
     e = Encoder(1024, 2, vocab_size=source_vocab_size)
-    o, h = e(batch, slen)
-    y, lengths = pad(o, batch_first=True)
+    y, h = e(batch, slen)
 
     assert y.size() == T.Size([300, 14, 1024]), \
         'Outputs should have size nr_batches * max_len * nr_hidden'
