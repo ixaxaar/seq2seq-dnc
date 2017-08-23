@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import math, re
+import math
+import re
 
 import numpy as np
 import torch.nn as nn
@@ -37,8 +38,10 @@ class LuongSeq2SeqTrainer(nn.Module):
         self.path = data_path
         self.src = src
         self.targ = targ
-        self.src_lang = self._load_lang('src', src_lang_path)
-        self.targ_lang = self._load_lang('targ', targ_lang_path)
+        self.src_lang = src_lang_path if type(
+            src_lang_path) is Lang else self._load_lang('src', src_lang_path)
+        self.targ_lang = targ_lang_path if type(
+            targ_lang_path) is Lang else self._load_lang('targ', targ_lang_path)
         self.n_layers = n_layers
         self.hidden_size = hidden_size
         self.teacher_forcing_ratio = teacher_forcing_ratio
@@ -66,6 +69,11 @@ class LuongSeq2SeqTrainer(nn.Module):
         l.load(path)
         return l
 
+    def _clean(self, sentence):
+        for x in list(default_dict.values()):
+            sentence = sentence.replace(x, '')
+        return sentence
+
     def evaluate(self, where, which, batch_size=64, shard_size=1000, save=False):
         shard = self._load_shard(0, which)
         indexes = shard['indexes']
@@ -78,6 +86,7 @@ class LuongSeq2SeqTrainer(nn.Module):
 
         batches = math.ceil(shard_size / batch_size)
         predicted_sentences = []
+        target_sentences = []
 
         for b in range(batches):
             log.debug('Evalutaing ' + which + ' batch ' + str(b))
@@ -94,23 +103,37 @@ class LuongSeq2SeqTrainer(nn.Module):
 
             # scores
             _, predicted = predicted.topk(1)
-            predicted = predicted.data.cpu().numpy()
+            predicted = predicted.squeeze(2).data.cpu().numpy()
+            t_packed = t_packed.data.cpu().numpy()
 
             # Top 1 prediction
             for x in range(predicted.shape[0]):
-                s = []
-                for y in predicted[x]:
-                    s.append( self.targ_lang.index2word[y[0]] )
-                predicted_sentences.append(' '.join(s))
-
-        predicted_sentences = [ re.sub('\s+', ' ', p.replace('SOS', ' ').replace('EOS', ' ')) for p in predicted_sentences ]
+                pred = []
+                ref = []
+                for i, y in enumerate(predicted[x]):
+                    pred.append(self.targ_lang.index2word[y])
+                    ref.append(self.targ_lang.index2word[t_packed[x, i]])
+                predicted_sentences.append(' '.join(pred))
+                target_sentences.append(' '.join(ref))
 
         # Remove special tokens and write into a file
+        # TODO: _clean is screwing up things (or is replace / re causing utf8 problems?)
+        # print(target_sentences)
+        # predicted_sentences = [self._clean(p) for p in predicted_sentences]
+        # target_sentences = [self._clean(p) for p in target_sentences]
+        # print(target_sentences)
+
         if save:
-            with open(where+'/'+which+'-predicted.txt', 'w') as out:
-                for p in predicted_sentences:
-                    out.write(p)
-                    out.write('\n')
+            log.info('Saving evaluated results')
+            with open(where + '/' + which + '-predicted.txt', 'w') as out:
+                with open(where + '/' + which + '-reference.txt', 'w') as ref:
+                    for p in predicted_sentences:
+                        out.write(p)
+                        out.write('\n')
+                    for rr in target_sentences:
+                        # print(rr)
+                        ref.write(rr)
+                        ref.write('\n')
 
         self.model.train()
         return predicted_sentences

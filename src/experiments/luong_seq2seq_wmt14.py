@@ -8,6 +8,8 @@ from util import *
 from seq2seq import *
 from scripts.wmt import processWMT
 
+import time
+
 
 def train_wmt_multimodal():
     where = '../data/multi30k'
@@ -16,32 +18,63 @@ def train_wmt_multimodal():
     test = 'test'
     src = 'en'
     targ = 'de'
-    shard_size = 10000
-    nr_shards = 29000 / shard_size
+    shard_size = 5000
+    nr_shards = math.ceil(29000 / shard_size)
+    n_layers = 2
+    n_hidden = 500
+    attention_type = 'general'
+    learning_rate = 0.0001
+    clip = 50.0
+    teacher_forcing_ratio = 0.0
+    batch_size = 50
 
     epochs = 50
-    gpu_id = 0
+    gpu_id = 1
 
-    s, t = processWMT(train, where, src, targ, shard_size=shard_size, gpu_id=gpu_id)
-    processWMT(valid, where, src, targ, s, t, shard_size=shard_size, gpu_id=gpu_id)
-    processWMT(test, where, src, targ, s, t, shard_size=shard_size, gpu_id=gpu_id)
+    # s = Lang('en')
+    # t = Lang('de')
+    # s.load('../data/multi30k/en.lang')
+    # t.load('../data/multi30k/de.lang')
+
+    s, t = processWMT(train, where, src, targ,
+                      shard_size=shard_size, gpu_id=gpu_id)
+    processWMT(valid, where, src, targ, s, t,
+               shard_size=1000, gpu_id=gpu_id)
+    processWMT(test, where, src, targ, s, t,
+               shard_size=1000, gpu_id=gpu_id)
+    # processWMT('supersmall', where, src, targ, s, t, shard_size=10, gpu_id=gpu_id)
 
     trainer = LuongSeq2SeqTrainer(
         where, src, targ,
-        where+'/'+src+'.lang',
-        where+'/'+targ+'.lang',
-        4, 1024, 0.2, 'dot', 0.001, 10.0, gpu_id
+        s, t,
+        n_layers, n_hidden, teacher_forcing_ratio, attention_type, learning_rate, clip, gpu_id
     )
 
-    # trainer = T.load(where+'/luong-seq2seq-epoch-12-dot-loss-2.7417213916778564.model')
+    # trainer = T.load(where+'/50epochs/luong-seq2seq-epoch-49-dot-loss-0.20151005685329437.model')
+    # trainer.model.encoder.gru.flatten_parameters()
+    # trainer.model.decoder.gru.flatten_parameters()
+
+    # trainer.evaluate(where, valid, save=True)
+    # return
+
+    # print(trainer.targ_lang.index2word[6352], 'glatzenansatz')
+    # trainer.evaluate(where, valid, save=True)
+    # trainer.evaluate(where, test, save=True)
+    # trainer.evaluate(where, 'supersmall', save=True, shard_size=10, batch_size=10)
 
     losses = []
     attns = []
     for epoch in range(1, epochs):
         for nr_shard in range(int(nr_shards)):
+
             log.info('Training epoch ' + str(epoch) +
                      ' shard ' + str(nr_shard))
-            l, last_attention = trainer(nr_shard, batch_size=100)
+
+            l, last_attention = trainer(nr_shard, batch_size=batch_size)
+            trainer.evaluate(where, valid, save=True)
+            bl = bleu(where, valid+'-predicted.txt', valid+'-reference.txt')
+            log.info('Bleu score for validation \n'+ str(bl))
+
             print(l)
             losses.append(l)
             attns.append(last_attention)

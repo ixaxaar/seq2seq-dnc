@@ -24,4 +24,4 @@ default_dict = {
     6: "RESERVED2"
 }
 
-MAX_LENGTH = 100
+MAX_LENGTH = 50
