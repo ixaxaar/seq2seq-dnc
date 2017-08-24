@@ -83,3 +83,8 @@ def expand_dims(input, axis=0):
         axis = len(input_shape) + axis + 1
     input_shape.insert(axis, 1)
     return input.view(*input_shape)
+
+
+def parse_bleu_output(bleu):
+    b = re.findall('BLEU\ =\ [0-9\.]*', bleu)[0].replace('BLEU = ', '')
+    return float(b)

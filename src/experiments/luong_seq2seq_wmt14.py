@@ -23,13 +23,14 @@ def train_wmt_multimodal():
     n_layers = 2
     n_hidden = 500
     attention_type = 'general'
-    learning_rate = 0.0001
+    learning_rate = 1.0
     clip = 50.0
     teacher_forcing_ratio = 0.0
     batch_size = 50
+    optim = 'sgd'
 
     epochs = 50
-    gpu_id = 1
+    gpu_id = 0
 
     # s = Lang('en')
     # t = Lang('de')
@@ -47,7 +48,8 @@ def train_wmt_multimodal():
     trainer = LuongSeq2SeqTrainer(
         where, src, targ,
         s, t,
-        n_layers, n_hidden, teacher_forcing_ratio, attention_type, learning_rate, clip, gpu_id
+        n_layers, n_hidden, teacher_forcing_ratio, attention_type,
+        learning_rate, clip, gpu_id, optim
     )
 
     # trainer = T.load(where+'/50epochs/luong-seq2seq-epoch-49-dot-loss-0.20151005685329437.model')
@@ -65,6 +67,10 @@ def train_wmt_multimodal():
     losses = []
     attns = []
     for epoch in range(1, epochs):
+        log.info('=====================================================')
+        log.info('Epoch '+str(epoch))
+        log.info('=====================================================')
+
         for nr_shard in range(int(nr_shards)):
 
             log.info('Training epoch ' + str(epoch) +
@@ -73,16 +79,23 @@ def train_wmt_multimodal():
             l, last_attention = trainer(nr_shard, batch_size=batch_size)
             trainer.evaluate(where, valid, save=True)
             bl = bleu(where, valid+'-predicted.txt', valid+'-reference.txt')
-            log.info('Bleu score for validation \n'+ str(bl))
 
-            print(l)
+            log.info(str(bl))
+            bleu = parse_bleu_output(bl)
+            log.info('Total loss: ' + str(sum(l)))
+
             losses.append(l)
             attns.append(last_attention)
 
-        T.save(trainer, where + '/' + 'luong-seq2seq-epoch-' + str(epoch) + '-' +
-               'dot' + '-loss-' + str(trainer.last_loss) + '.model')
-        T.save(trainer.state_dict(), where + '/' + 'luong-seq2seq-epoch-' + str(epoch) + '-' +
-               'dot' + '-loss-' + str(trainer.last_loss) + '-state-dict.model')
+        try:
+            T.save(trainer, where + '/' + 'luong-seq2seq-epoch-' + str(epoch) + '-' +
+                   'dot' + '-loss-' + str(trainer.last_loss) + '.model')
+            T.save(trainer.state_dict(), where + '/' + 'luong-seq2seq-epoch-' + str(epoch) + '-' +
+                   'dot' + '-loss-' + str(trainer.last_loss) + '-state-dict.model')
+        except Exception as e:
+            print(e)
+
+        trainer.learning_rate_decay()
 
 if __name__ == '__main__':
     train_wmt_multimodal()

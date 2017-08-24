@@ -69,6 +69,7 @@ class LuongSeq2Seq(nn.Module):
             T.zeros(batch_size, max(target_lengths), self.decoder.output_size),
             gpu_id=self.gpu_id
         )
+        # todo: use tensor instead of numpy
         input = cudavec(
             np.array([SOS] * batch_size, dtype=np.long),
             gpu_id=self.gpu_id

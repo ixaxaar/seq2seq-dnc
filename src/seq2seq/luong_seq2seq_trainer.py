@@ -14,6 +14,7 @@ from util import *
 from .luong_seq2seq import LuongSeq2Seq
 
 from loss import MaskedCrossEntropy
+from optimizers import DecayingOptimizer
 
 
 class LuongSeq2SeqTrainer(nn.Module):
@@ -29,9 +30,10 @@ class LuongSeq2SeqTrainer(nn.Module):
         hidden_size=1024,
         teacher_forcing_ratio=0.2,
         attention_type='general',
-        learning_rate=0.001,
+        learning_rate=1.0,
         gradient_clip=10.0,
-        gpu_id=-1
+        gpu_id=-1,
+        optimizer='sgd'
     ):
         super(LuongSeq2SeqTrainer, self).__init__()
 
@@ -49,16 +51,24 @@ class LuongSeq2SeqTrainer(nn.Module):
         self.gpu_id = gpu_id
         self.learning_rate = learning_rate
         self.gradient_clip = gradient_clip
+        self.optim = optimizer
+
         self.last_loss = 0
 
         self.model = LuongSeq2Seq(self.src_lang, self.targ_lang, self.n_layers, self.hidden_size,
                                   self.teacher_forcing_ratio, self.attention_type, self.gpu_id)
 
         self.loss = MaskedCrossEntropy(self.gpu_id)
-        self.encoder_optimizer = \
-            optim.Adam(self.model.encoder.parameters(), lr=learning_rate)
-        self.decoder_optimizer = \
-            optim.Adam(self.model.decoder.parameters(), lr=learning_rate)
+
+        self.encoder_optimizer = DecayingOptimizer(
+            self.model.encoder.parameters(), self.optim, self.learning_rate, 'lambda', self._decay)
+        self.decoder_optimizer = DecayingOptimizer(
+            self.model.decoder.parameters(), self.optim, self.learning_rate, 'lambda', self._decay)
+
+    def _decay(self, epoch):
+        l = self.learning_rate if epoch < 10 else (self.learning_rate - (self.learning_rate/100)*epoch)
+        log.info('New learning rate '+str(l))
+        return l
 
     def _load_shard(self, nr_shard, which='train'):
         with open(self.path + '/sentence-pairs-' + which + '-' + self.src + '-' + self.targ + '-shard-' + str(nr_shard) + '.t7', 'rb') as pairs:
@@ -124,7 +134,7 @@ class LuongSeq2SeqTrainer(nn.Module):
         # print(target_sentences)
 
         if save:
-            log.info('Saving evaluated results')
+            log.debug('Saving evaluated results')
             with open(where + '/' + which + '-predicted.txt', 'w') as out:
                 with open(where + '/' + which + '-reference.txt', 'w') as ref:
                     for p in predicted_sentences:
@@ -160,6 +170,7 @@ class LuongSeq2SeqTrainer(nn.Module):
             t_packed = target[b:b + batch_size]
             s_lens = source_lengths[b:b + batch_size]
             t_lens = target_lengths[b:b + batch_size]
+
             # reset gradients
             self.encoder_optimizer.zero_grad()
             self.decoder_optimizer.zero_grad()
@@ -192,3 +203,8 @@ class LuongSeq2SeqTrainer(nn.Module):
             #     pass
 
         return losses, last_attn
+
+    def learning_rate_decay(self, val_loss=None):
+        # compute learning rate decay
+        self.encoder_optimizer.decay()
+        self.decoder_optimizer.decay()
