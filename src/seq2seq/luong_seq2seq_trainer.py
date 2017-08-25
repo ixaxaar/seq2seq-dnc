@@ -61,12 +61,12 @@ class LuongSeq2SeqTrainer(nn.Module):
         self.loss = MaskedCrossEntropy(self.gpu_id)
 
         self.encoder_optimizer = DecayingOptimizer(
-            self.model.encoder.parameters(), self.optim, self.learning_rate, 'lambda', self._decay)
+            self.model.encoder.parameters(), self.optim, self.learning_rate, 'plateau', 0.5)
         self.decoder_optimizer = DecayingOptimizer(
-            self.model.decoder.parameters(), self.optim, self.learning_rate, 'lambda', self._decay)
+            self.model.decoder.parameters(), self.optim, self.learning_rate, 'plateau', 0.5)
 
     def _decay(self, epoch):
-        l = self.learning_rate if epoch < 10 else (self.learning_rate - (self.learning_rate/100)*epoch)
+        l = self.learning_rate if epoch < 5 else (self.learning_rate - (self.learning_rate/100)*epoch)
         log.info('New learning rate '+str(l))
         return l
 
@@ -206,5 +206,5 @@ class LuongSeq2SeqTrainer(nn.Module):
 
     def learning_rate_decay(self, val_loss=None):
         # compute learning rate decay
-        self.encoder_optimizer.decay()
-        self.decoder_optimizer.decay()
+        self.encoder_optimizer.decay(val_loss)
+        self.decoder_optimizer.decay(val_loss)

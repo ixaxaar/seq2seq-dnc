@@ -24,7 +24,7 @@ def train_wmt_multimodal():
     n_hidden = 500
     attention_type = 'general'
     learning_rate = 1.0
-    clip = 50.0
+    clip = 5.0
     teacher_forcing_ratio = 0.0
     batch_size = 50
     optim = 'sgd'
@@ -66,9 +66,10 @@ def train_wmt_multimodal():
 
     losses = []
     attns = []
+    bleus = []
     for epoch in range(1, epochs):
         log.info('=====================================================')
-        log.info('Epoch '+str(epoch))
+        log.info('Epoch ' + str(epoch))
         log.info('=====================================================')
 
         for nr_shard in range(int(nr_shards)):
@@ -78,12 +79,14 @@ def train_wmt_multimodal():
 
             l, last_attention = trainer(nr_shard, batch_size=batch_size)
             trainer.evaluate(where, valid, save=True)
-            bl = bleu(where, valid+'-predicted.txt', valid+'-reference.txt')
+            bl = bleu(where,
+                      valid + '-predicted.txt',
+                      valid + '-reference.txt')
 
             log.info(str(bl))
-            bleu = parse_bleu_output(bl)
             log.info('Total loss: ' + str(sum(l)))
 
+            bleus.append(parse_bleu_output(bl))
             losses.append(l)
             attns.append(last_attention)
 
@@ -95,7 +98,7 @@ def train_wmt_multimodal():
         except Exception as e:
             print(e)
 
-        trainer.learning_rate_decay()
+        trainer.learning_rate_decay(sum(bleus) / len(bleus))
 
 if __name__ == '__main__':
     train_wmt_multimodal()

@@ -39,7 +39,7 @@ class DecayingOptimizer:
             self.scheduler = StepLR(self.opt, self.λ, gamma=self.γ)
         elif self.kind == 'plateau':
             self.scheduler = ReduceLROnPlateau(
-                self.opt, 'min', patience=10, verbose=True, factor=self.λ)
+                self.opt, 'max', patience=5, verbose=True, factor=self.λ)
 
     def step(self):
         self.opt.step()
@@ -48,10 +48,10 @@ class DecayingOptimizer:
         self.opt.zero_grad()
 
     def decay(self, val_loss=None):
-        if self.scheduler:
-            self.scheduler.step()
         if self.kind == 'plateau':
             self.scheduler.step(val_loss)
+        elif self.scheduler:
+            self.scheduler.step()
         else:
             pass
 
