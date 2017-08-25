@@ -19,7 +19,7 @@ from util import *
 
 class LuongAttnDecoderRNN(nn.Module):
 
-    def __init__(self, attn_model, hidden_size, n_layers=1, dropout_p=0.3, vocab_size=50000, gpu_id=-1):
+    def __init__(self, attn_model, hidden_size, n_layers=1, dropout_p=0.3, vocab_size=50000, gpu_id=-1, bidirectional=False):
         super(LuongAttnDecoderRNN, self).__init__()
         self.attn_model = attn_model
         self.hidden_size = hidden_size
@@ -31,12 +31,12 @@ class LuongAttnDecoderRNN(nn.Module):
         self.embedding = nn.Embedding(vocab_size, hidden_size, PAD)
         self.embedding_dropout = nn.Dropout(dropout_p)
         self.rnn = nn.LSTM(
-            hidden_size,
-            hidden_size,
-            n_layers,
-            dropout=dropout_p,
+            self.hidden_size,
+            self.hidden_size,
+            self.n_layers,
+            dropout=self.dropout_p,
             batch_first=True,
-            bidirectional=True
+            bidirectional=self.bidirectional
         )
         self.rnn.flatten_parameters()
         self.attn = Attn(attn_model, hidden_size, gpu_id=self.gpu_id)
@@ -57,8 +57,9 @@ class LuongAttnDecoderRNN(nn.Module):
         dec_outs, lengths = pad(dec_outs, batch_first=True)
 
         # sum the bidirectional outputs
-        dec_outs = dec_outs[:, :, :self.hidden_size] + \
-            dec_outs[:, :, self.hidden_size:]
+        if self.bidirectional:
+            dec_outs = dec_outs[:, :, :self.hidden_size] + \
+                dec_outs[:, :, self.hidden_size:]
 
         # calculate the attention context vector
         attn_weights = self.attn(dec_outs, encoder_outputs)

@@ -25,7 +25,9 @@ class LuongSeq2Seq(nn.Module):
         hidden_size=1024,
         teacher_forcing_ratio=0.2,
         attention_type='general',
-        gpu_id=-1
+        gpu_id=-1,
+        bidirectional_encoder=True,
+        bidirectional_decoder=False
     ):
         super(LuongSeq2Seq, self).__init__()
 
@@ -36,18 +38,21 @@ class LuongSeq2Seq(nn.Module):
         self.teacher_forcing_ratio = teacher_forcing_ratio
         self.attention_type = attention_type
         self.gpu_id = gpu_id
+        self.bidirectional = bidirectional
 
         self.encoder = Encoder(
             hidden_size,
             n_layers,
-            vocab_size=src_lang.n_words
+            vocab_size=src_lang.n_words,
+            bidirectional=bidirectional_encoder
         )
         self.decoder = LuongAttnDecoderRNN(
             attention_type,
             hidden_size,
             n_layers,
             vocab_size=targ_lang.n_words,
-            gpu_id=gpu_id
+            gpu_id=gpu_id,
+            bidirectional=bidirectional_decoder
         )
         if gpu_id != -1:
             self.encoder.cuda(gpu_id)
@@ -62,7 +67,7 @@ class LuongSeq2Seq(nn.Module):
     def forward(self, source, target, source_lengths, target_lengths):
         attentions = []
         encoded, hidden = self.encoder(source, source_lengths)
-        hidden = hidden[:self.decoder.n_layers]
+        hidden = tuple( [ h[:self.decoder.n_layers] for h in hidden ] )
         batch_size = len(source)
 
         outputs = cuda(

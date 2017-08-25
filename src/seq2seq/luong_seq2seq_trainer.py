@@ -33,7 +33,9 @@ class LuongSeq2SeqTrainer(nn.Module):
         learning_rate=1.0,
         gradient_clip=10.0,
         gpu_id=-1,
-        optimizer='sgd'
+        optimizer='sgd',
+        bidirectional_encoder=True,
+        bidirectional_decoder=False
     ):
         super(LuongSeq2SeqTrainer, self).__init__()
 
@@ -56,8 +58,8 @@ class LuongSeq2SeqTrainer(nn.Module):
         self.last_loss = 0
 
         self.model = LuongSeq2Seq(self.src_lang, self.targ_lang, self.n_layers, self.hidden_size,
-                                  self.teacher_forcing_ratio, self.attention_type, self.gpu_id)
-
+                                  self.teacher_forcing_ratio, self.attention_type, self.gpu_id,
+                                  bidirectional_encoder, bidirectional_decoder)
         self.loss = MaskedCrossEntropy(self.gpu_id)
 
         self.encoder_optimizer = DecayingOptimizer(

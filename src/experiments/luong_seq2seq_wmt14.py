@@ -26,8 +26,10 @@ def train_wmt_multimodal():
     learning_rate = 1.0
     clip = 5.0
     teacher_forcing_ratio = 0.0
-    batch_size = 50
+    batch_size = 128
     optim = 'sgd'
+    bidirectional_encoder = True
+    bidirectional_decoder = False
 
     epochs = 50
     gpu_id = 0
@@ -49,7 +51,9 @@ def train_wmt_multimodal():
         where, src, targ,
         s, t,
         n_layers, n_hidden, teacher_forcing_ratio, attention_type,
-        learning_rate, clip, gpu_id, optim
+        learning_rate, clip, gpu_id, optim,
+        bidirectional_encoder=bidirectional_encoder,
+        bidirectional_decoder=bidirectional_decoder
     )
 
     # trainer = T.load(where+'/50epochs/luong-seq2seq-epoch-49-dot-loss-0.20151005685329437.model')
