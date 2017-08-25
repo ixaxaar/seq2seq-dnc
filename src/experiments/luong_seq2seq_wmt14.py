@@ -3,6 +3,7 @@
 import numpy as np
 
 import torch as T
+from random import shuffle
 
 from util import *
 from seq2seq import *
@@ -76,7 +77,9 @@ def train_wmt_multimodal():
         log.info('Epoch ' + str(epoch))
         log.info('=====================================================')
 
-        for nr_shard in range(int(nr_shards)):
+        # shuffle shard order
+        shuffled_shards = shuffle(list(range(int(nr_shards))))
+        for nr_shard in shuffled_shards:
 
             log.info('Training epoch ' + str(epoch) +
                      ' shard ' + str(nr_shard))
