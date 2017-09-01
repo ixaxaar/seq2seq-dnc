@@ -7,9 +7,7 @@ from torch.autograd import Variable as var
 import numpy as np
 
 from util import *
-from .attention import Attn
-from .encoder import Encoder
-from .luong_decoder import LuongAttnDecoderRNN
+from seq2seq import *
 
 from torch.nn.utils.rnn import pad_packed_sequence as pad
 from torch.nn.utils.rnn import pack_padded_sequence as pack

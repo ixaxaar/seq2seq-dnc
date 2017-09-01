@@ -8,7 +8,7 @@ import os
 sys.path.append('./src/')
 
 from util import *
-from seq2seq import *
+from nets import *
 from scripts.wmt import processWMT
 
 

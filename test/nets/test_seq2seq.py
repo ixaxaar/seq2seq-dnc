@@ -8,7 +8,7 @@ import os
 sys.path.append('./src/')
 
 from util import *
-from seq2seq import *
+from nets import *
 from scripts.index_corpus import index_corpus
 
 from torch.nn.utils.rnn import pad_packed_sequence as pad

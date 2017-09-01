@@ -12,31 +12,31 @@ from dnc import *
 
 class WorkingMemory(nn.Module):
 
-  def __init__(self, mem_size=512, cell_size=32, batch_size=64, read_heads=4, gpu_id=-1):
+  def __init__(self, mem_size=512, cell_size=32, read_heads=4, gpu_id=-1):
     super(WorkingMemory, self).__init__()
 
     self.mem_size = mem_size
     self.cell_size = cell_size
-    self.batch_size = batch_size
     self.read_heads = read_heads
     self.gpu_id = gpu_id
 
-    m = mem_size
-    w = cell_size
-    r = read_heads
+  def reset(self, batch_size=1):
+    m = self.mem_size
+    w = self.cell_size
+    r = self.read_heads
     b = batch_size
 
     # linear memory (b * m * w)
-    self.memory = cuda(T.zeros(batch_size, m, w).fill_(δ), gpu_id=gpu_id)
+    self.memory = cuda(T.zeros(b, m, w).fill_(δ), gpu_id=self.gpu_id)
     # associative linkages (b * m * m)
-    self.temporal = cuda(T.zeros(batch_size, m, m), gpu_id=gpu_id)
-    # self.semantic = cuda(T.zeros(batch_size, m, m), gpu_id=gpu_id)
-    self.temporal_weights = cuda(T.zeros(batch_size, m), gpu_id=gpu_id)
-    # self.semantic_weights = cuda(T.zeros(batch_size, m), gpu_id=gpu_id)
-    self.read_weights = cuda(T.zeros(batch_size, m, r).fill_(δ), gpu_id=gpu_id)
-    self.write_weights = cuda(T.zeros(batch_size, m).fill_(δ), gpu_id=gpu_id)
-    # self.read_vector = cuda(T.zeros(batch_size, w, r).fill_(δ), gpu_id=gpu_id)
-    self.usage_vector = cuda(T.zeros(batch_size, m), gpu_id=gpu_id)
+    self.temporal = cuda(T.zeros(b, m, m), gpu_id=self.gpu_id)
+    # self.semantic = cuda(T.zeros(b, m, m), gpu_id=self.gpu_id)
+    self.temporal_weights = cuda(T.zeros(b, m), gpu_id=self.gpu_id)
+    # self.semantic_weights = cuda(T.zeros(b, m), gpu_id=self.gpu_id)
+    self.read_weights = cuda(T.zeros(b, m, r).fill_(δ), gpu_id=self.gpu_id)
+    self.write_weights = cuda(T.zeros(b, m).fill_(δ), gpu_id=self.gpu_id)
+    # self.read_vector = cuda(T.zeros(b, w, r).fill_(δ), self.gpu_id=self.gpu_id)
+    self.usage_vector = cuda(T.zeros(b, m), gpu_id=self.gpu_id)
     self.I = cuda(T.eye(m).unsqueeze(0))  # (1 * n * n)
 
   def mem_usage(self, usage, free_gates, read_weights, write_weight):
@@ -135,7 +135,9 @@ class WorkingMemory(nn.Module):
     m = self.mem_size
     w = self.cell_size
     r = self.read_heads
-    b = self.batch_size
+    b = ξ.size()[0]
+
+    self.reset(b)
 
     # r read keys (b * r * w)
     read_keys = ξ[:, :r * w].contiguous().view(b, w, r)

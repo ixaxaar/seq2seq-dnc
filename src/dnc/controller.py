@@ -15,7 +15,15 @@ from seq2seq import Encoder
 
 class WorkingMemoryController(nn.Module):
 
-  def __init__(self, hidden_size, memory, encoder, n_layers=1, dropout_p=0.3, bidirectional=False, gpu_id=-1, batch_size=64):
+  def __init__(self,
+               hidden_size,
+               memory,
+               encoder,
+               n_layers=1,
+               dropout_p=0.3,
+               bidirectional=False,
+               gpu_id=-1
+               ):
     super(WorkingMemoryController, self).__init__()
 
     self.hidden_size = hidden_size
@@ -24,7 +32,6 @@ class WorkingMemoryController(nn.Module):
     self.n_layers = n_layers
     self.dropout = dropout_p
     self.gpu_id = gpu_id
-    self.batch_size = batch_size
     self.bidirectional = bidirectional
 
     self.w = self.memory.cell_size
@@ -47,22 +54,23 @@ class WorkingMemoryController(nn.Module):
     )
     self.rnn.flatten_parameters()
 
-  def forward(self, input, hidden, source_lengths):
+  def forward(self, input, source_lengths, hidden=(None, None)):
+    batch_size = len(source_lengths)
     (encoder_hidden, interface_hidden) = hidden
     encoded, encoder_hidden = self.encoder(input, source_lengths, encoder_hidden)
 
     # nothing read in first time step (b*w*r)
-    read_vectors = cuda(T.zeros(self.batch_size, self.w, self.r), gpu_id=self.gpu_id)
+    read_vectors = cuda(T.zeros(batch_size, self.w, self.r), gpu_id=self.gpu_id)
     dnc_encoded = cuda(T.zeros(encoded.size()), gpu_id=self.gpu_id)
 
     # unroll the rnn for each time step
     for x in range(max(source_lengths)):
       # concat the input and stuff read from memory in last time step
       b = encoded[:, x, :].unsqueeze(2)  # b * w * 1
-      input = T.cat((b, read_vectors), 2).view(self.batch_size, -1, self.input_size)  # b * 1 * ((r+1)*w)
+      input = T.cat((b, read_vectors), 2).view(batch_size, -1, self.input_size)  # b * 1 * ((r+1)*w)
 
       # pass it through an RNN
-      input = pack(input, [1] * self.batch_size, batch_first=True)
+      input = pack(input, [1] * batch_size, batch_first=True)
       out, interface_hidden = self.rnn(input, interface_hidden)
       out, _ = pad(out, batch_first=True)
 
