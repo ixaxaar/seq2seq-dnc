@@ -15,11 +15,11 @@ class WorkingMemory(nn.Module):
   def __init__(self, mem_size=512, cell_size=32, batch_size=64, read_heads=4, gpu_id=-1):
     super(WorkingMemory, self).__init__()
 
-    self.mem_size = 512
-    self.cell_size = 32
-    self.batch_size = 64
-    self.read_heads = 4
-    self.gpu_id = -1
+    self.mem_size = mem_size
+    self.cell_size = cell_size
+    self.batch_size = batch_size
+    self.read_heads = read_heads
+    self.gpu_id = gpu_id
 
     m = mem_size
     w = cell_size
@@ -70,7 +70,6 @@ class WorkingMemory(nn.Module):
     prev_scale = 1 - write_weights_i - write_weights_j
     new_temporal = write_weights_i * temporal_weights
 
-    print((prev_scale * temporal + new_temporal).size())
     temporal = (prev_scale * temporal + new_temporal).squeeze(4).squeeze(1)
     # elaborate trick to delete diag elems
     temporal = (1 - self.I).expand_as(temporal) * temporal
@@ -100,9 +99,7 @@ class WorkingMemory(nn.Module):
     self.memory = erasing + writing
 
     # update link_matrix
-    print('temporal', self.temporal.size())
     self.temporal = self.get_link_matrix(self.temporal, write_weights, self.temporal_weights)
-    print('temporal2', self.temporal.size())
     self.temporal_weights = self.update_precedence(self.temporal_weights, write_weights)
 
   def content_weightings(self, memory, keys, read_strengths):
