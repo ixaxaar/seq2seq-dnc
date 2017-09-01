@@ -12,7 +12,7 @@ from nets import *
 from scripts.wmt import processWMT
 
 
-def test_luongseq2seqtrainer():
+def test_seq2seqdnctrainer():
   where = './data/multi30k'
   which = 'train'
   src = 'en'
@@ -21,11 +21,24 @@ def test_luongseq2seqtrainer():
   gpu_id = -1
   processWMT(which, where, src, targ, shard_size=shard_size, gpu_id=gpu_id)
 
-  trainer = LuongSeq2SeqTrainer(
+  trainer = Seq2seqDNCTrainer(
       where, src, targ,
       where + '/' + src + '.lang',
       where + '/' + targ + '.lang',
-      2, 256, 0.2, 'dot', 0.001, 10.0, -1
+      n_layers=2,
+      hidden_size=256,
+      teacher_forcing_ratio=0.2,
+      attention_type='general',
+      learning_rate=1.0,
+      gradient_clip=10.0,
+      gpu_id=-1,
+      optimizer='sgd',
+      bidirectional_encoder=True,
+      bidirectional_decoder=False,
+      mem_size=50,
+      cell_size=256,
+      read_heads=4,
+      dropout=0.3
   )
 
   losses, last_attention = trainer(0, batch_size=128)
