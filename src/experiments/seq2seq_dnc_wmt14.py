@@ -28,13 +28,17 @@ def train_wmt_multimodal():
   learning_rate = 1.0
   clip = 5.0
   teacher_forcing_ratio = 0.0
-  batch_size = 128
+  batch_size = 40
   optim = 'sgd'
   bidirectional_encoder = True
   bidirectional_decoder = False
+  mem_size = 50
+  cell_size = 500
+  read_heads = 2
+  dropout = 0.3
 
   epochs = 50
-  gpu_id = 0
+  gpu_id = 1
 
   # s = Lang('en')
   # t = Lang('de')
@@ -49,13 +53,15 @@ def train_wmt_multimodal():
              shard_size=1000, gpu_id=gpu_id)
   # processWMT('supersmall', where, src, targ, s, t, shard_size=10, gpu_id=gpu_id)
 
-  trainer = LuongSeq2SeqTrainer(
+  trainer = Seq2seqDNCTrainer(
       where, src, targ,
       s, t,
       n_layers, n_hidden, teacher_forcing_ratio, attention_type,
       learning_rate, clip, gpu_id, optim,
       bidirectional_encoder=bidirectional_encoder,
-      bidirectional_decoder=bidirectional_decoder
+      bidirectional_decoder=bidirectional_decoder,
+      mem_size=mem_size, cell_size=cell_size, read_heads=read_heads,
+      dropout=dropout
   )
 
   # trainer = T.load(where+'/50epochs/luong-seq2seq-epoch-49-dot-loss-0.20151005685329437.model')

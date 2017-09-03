@@ -26,4 +26,4 @@ default_dict = {
 
 MAX_LENGTH = 50
 
-δ = 1e-8
+δ = 1e-6

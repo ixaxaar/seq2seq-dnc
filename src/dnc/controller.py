@@ -52,12 +52,22 @@ class WorkingMemoryController(nn.Module):
         batch_first=True,
         bidirectional=self.bidirectional
     )
+    self.mem_output_weights = nn.Parameter(
+        torch.randn(self.w * self.r, self.hidden_size).uniform_(-0.1, 0.1)
+    )
     self.rnn.flatten_parameters()
 
-  def forward(self, input, source_lengths, hidden=(None, None)):
+  def forward(self, input, source_lengths, hidden=(None, None, None)):
     batch_size = len(source_lengths)
-    (encoder_hidden, interface_hidden) = hidden
+    if not hidden:
+      hidden = (None, None, None)
+    (encoder_hidden, interface_hidden, mem_hidden) = hidden
+
+    # encode
     encoded, encoder_hidden = self.encoder(input, source_lengths, encoder_hidden)
+
+    # reset working memory
+    mem_hidden = self.memory.reset(batch_size, mem_hidden)
 
     # nothing read in first time step (b*w*r)
     read_vectors = cuda(T.zeros(batch_size, self.w, self.r), gpu_id=self.gpu_id)
@@ -71,12 +81,18 @@ class WorkingMemoryController(nn.Module):
 
       # pass it through an RNN
       input = pack(input, [1] * batch_size, batch_first=True)
+
       out, interface_hidden = self.rnn(input, interface_hidden)
       out, _ = pad(out, batch_first=True)
 
       # separate the current encoded word and the memory interface vector
-      dnc_encoded[:, x, :] = out[:, :, :self.hidden_size]
       ξ = out[:, :, self.hidden_size:].squeeze(1)
-      read_vectors = self.memory(ξ)
+      read_vectors, mem_hidden = self.memory(ξ, mem_hidden)
 
-    return dnc_encoded, (encoder_hidden, interface_hidden)
+      # final output, todo: differs from deepmind's implementation
+      # where they concat and then pass through a Linear
+      read_vecs = read_vectors.view(-1, self.w * self.r)
+      mem_encoded = out[:, :, :self.hidden_size] + T.mm(read_vecs, self.mem_output_weights).unsqueeze(1)
+      dnc_encoded[:, x, :] = mem_encoded
+
+    return dnc_encoded, (encoder_hidden, interface_hidden, mem_hidden)

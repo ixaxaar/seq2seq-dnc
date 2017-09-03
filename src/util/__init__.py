@@ -9,3 +9,4 @@ from .pack import *
 from .special import *
 from .bleu import *
 from .plot import *
+from .gc import *

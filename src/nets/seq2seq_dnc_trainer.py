@@ -75,9 +75,9 @@ class Seq2seqDNCTrainer(nn.Module):
     self.loss = MaskedCrossEntropy(self.gpu_id)
 
     self.encoder_optimizer = DecayingOptimizer(
-        self.model.encoder.parameters(), self.optim, self.learning_rate, 'plateau', 0.5)
-    self.decoder_optimizer = DecayingOptimizer(
-        self.model.decoder.parameters(), self.optim, self.learning_rate, 'plateau', 0.5)
+        self.model.parameters(), self.optim, self.learning_rate, 'plateau', 0.5)
+    # self.decoder_optimizer = DecayingOptimizer(
+    #     self.model.decoder.parameters(), self.optim, self.learning_rate, 'plateau', 0.5)
 
   def _decay(self, epoch):
     l = self.learning_rate if epoch < 5 else (self.learning_rate - (self.learning_rate / 100) * epoch)
@@ -165,6 +165,7 @@ class Seq2seqDNCTrainer(nn.Module):
   def forward(self, nr_shard, batch_size=64):
     losses = [0.0]
     last_attn = None
+    hidden = None
 
     # load the shard
     shard = self._load_shard(nr_shard)
@@ -187,10 +188,9 @@ class Seq2seqDNCTrainer(nn.Module):
 
       # reset gradients
       self.encoder_optimizer.zero_grad()
-      self.decoder_optimizer.zero_grad()
+      # self.decoder_optimizer.zero_grad()
       # forward pass
-      last_attn = None
-      predicted, last_attn = self.model(
+      predicted, last_attn, hidden = self.model(
           s_packed, t_packed, s_lens, t_lens)
       # evaluate
       loss = self.loss(
@@ -208,7 +208,7 @@ class Seq2seqDNCTrainer(nn.Module):
           self.model.decoder.parameters(), self.gradient_clip)
       # update parameters
       self.encoder_optimizer.step()
-      self.decoder_optimizer.step()
+      # self.decoder_optimizer.step()
       losses.append(float(loss.data.cpu().numpy()[0]))
       self.last_loss = losses[len(losses) - 1]
       # except Exception as e:
@@ -221,4 +221,4 @@ class Seq2seqDNCTrainer(nn.Module):
   def learning_rate_decay(self, val_loss=None):
     # compute learning rate decay
     self.encoder_optimizer.decay(val_loss)
-    self.decoder_optimizer.decay(val_loss)
+    # self.decoder_optimizer.decay(val_loss)

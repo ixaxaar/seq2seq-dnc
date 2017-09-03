@@ -74,7 +74,7 @@ class Seq2SeqDNC(nn.Module):
         hidden_size,
         n_layers,
         vocab_size=targ_lang.n_words,
-        gpu_id=gpu_id,
+        gpu_id=self.gpu_id,
         dropout_p=self.dropout,
         bidirectional=self.bidirectional_decoder
     )
@@ -88,22 +88,20 @@ class Seq2SeqDNC(nn.Module):
   def _teacher_force(self):
     return np.random.choice([False, True], p=[1 - self.teacher_forcing_ratio, self.teacher_forcing_ratio])
 
-  def forward(self, source, target, source_lengths, target_lengths):
+  def forward(self, source, target, source_lengths, target_lengths, hidden=None):
     attentions = []
-    encoded, hidden = self.controller(source, source_lengths)
+
+    encoded, controller_hidden = self.controller(source, source_lengths, hidden)
+
     # the encoder LSTM's last hidden layer
-    hidden = tuple([h[:self.decoder.n_layers] for h in hidden[0]])
+    hidden = tuple([h[:self.decoder.n_layers] for h in controller_hidden[0]])
     batch_size = len(source)
 
     outputs = cuda(
         T.zeros(batch_size, max(target_lengths), self.decoder.output_size),
         gpu_id=self.gpu_id
     )
-    # todo: use tensor instead of numpy
-    input = cudavec(
-        np.array([SOS] * batch_size, dtype=np.long),
-        gpu_id=self.gpu_id
-    ).unsqueeze(1)
+    input = cuda(T.LongTensor([SOS] * batch_size), gpu_id=self.gpu_id).unsqueeze(1)
 
     # manually unrolled
     for x in range(max(target_lengths)):
@@ -116,4 +114,4 @@ class Seq2SeqDNC(nn.Module):
       else:
         input = var(o.data.topk(1)[0].squeeze(1).long())
 
-    return outputs, np.array(attentions)
+    return outputs, np.array(attentions), controller_hidden

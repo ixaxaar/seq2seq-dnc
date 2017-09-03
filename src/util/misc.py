@@ -36,7 +36,7 @@ def θ(a, b, dimA=2, dimB=1, normBy=2):
 
   Arguments:
       a {Tensor} -- A 3D Tensor (b * m * w)
-      b {Tensor} -- A 3D Tensor (b * r * w)
+      b {Tensor} -- A 3D Tensor (b * w * r)
 
   Keyword Arguments:
       dimA {number} -- exponent value of the norm for `a` (default: {2})
@@ -45,10 +45,10 @@ def θ(a, b, dimA=2, dimB=1, normBy=2):
   Returns:
       Tensor -- Batchwise cosine distance (b * m * r)
   """
-  return T.bmm(
-      T.div(a, T.norm(a, normBy, dimA, keepdim=True).expand_as(a) + δ),
-      T.div(b, T.norm(b, normBy, dimB, keepdim=True).expand_as(b) + δ)
-  )
+  a_norm = T.norm(a, normBy, dimA, keepdim=True).expand_as(a) + δ
+  b_norm = T.norm(b, normBy, dimB, keepdim=True).expand_as(b) + δ
+
+  return T.bmm(a, b) / (T.bmm(a_norm, b_norm) + δ)
 
 
 def σ(input, axis=1):
