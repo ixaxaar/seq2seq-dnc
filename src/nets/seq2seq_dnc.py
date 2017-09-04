@@ -107,7 +107,7 @@ class Seq2SeqDNC(nn.Module):
     for x in range(max(target_lengths)):
       o, hidden, att = self.decoder(input, encoded, hidden)
       outputs[:, x, :] = o
-      attentions.append(att.data.cpu().numpy())
+      # attentions.append(att.data.cpu().numpy())
 
       if self._teacher_force():
         input = target[:, x].unsqueeze(1).long()

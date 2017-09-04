@@ -69,6 +69,10 @@ class LuongAttnDecoderRNN(nn.Module):
     # Finally concatenate and pass through a linear layer
     concated_input = T.cat((dec_outs, context), 2)
     concated_out = self.concat(concated_input.squeeze(1)).unsqueeze(1)
-    concat_output = self.output(F.tanh(concated_out))
+    concat_output = None
+    try:
+      concat_output = self.output(F.tanh(concated_out))
+    except Exception as e:
+      print(concated_out.size(), concated_out)
 
     return (concat_output, hidden, attn_weights)

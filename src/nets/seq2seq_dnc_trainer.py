@@ -122,8 +122,7 @@ class Seq2seqDNCTrainer(nn.Module):
       s_lens = source_lengths[b:b + batch_size]
       t_lens = target_lengths[b:b + batch_size]
 
-      predicted, attn = self.model(
-          s_packed, t_packed, s_lens, t_lens)
+      predicted, attn, hidden = self.model(s_packed, t_packed, s_lens, t_lens)
 
       # scores
       _, predicted = predicted.topk(1)
@@ -190,8 +189,7 @@ class Seq2seqDNCTrainer(nn.Module):
       self.encoder_optimizer.zero_grad()
       # self.decoder_optimizer.zero_grad()
       # forward pass
-      predicted, last_attn, hidden = self.model(
-          s_packed, t_packed, s_lens, t_lens)
+      predicted, last_attn, hidden = self.model(s_packed, t_packed, s_lens, t_lens)
       # evaluate
       loss = self.loss(
           predicted.contiguous(),
