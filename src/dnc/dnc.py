@@ -10,7 +10,7 @@ from torch.nn.utils.rnn import pack_padded_sequence as pack
 from torch.nn.utils.rnn import PackedSequence
 
 from util import *
-from .working_memory import *
+from .memory import *
 
 
 class DNC(nn.Module):
