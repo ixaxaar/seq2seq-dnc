@@ -55,20 +55,26 @@ class DNC(nn.Module):
     # self.interface_size = (self.w * self.r) + (3 * self.w) + (5 * self.r) + 3
     self.output_size = self.hidden_size
 
-    if self.mode == 'RNN':
-      self.rnn = nn.RNNCell(self.input_size, self.output_size, bias=self.bias, nonlinearity=self.nonlinearity)
-    elif self.mode == 'GRU':
-      self.rnn = nn.GRUCell(self.input_size, self.output_size, bias=self.bias)
-    elif self.mode == 'LSTM':
-      self.rnn = nn.LSTMCell(self.input_size, self.output_size, bias=self.bias)
+    self.rnns = []
+    self.memories = []
 
-    self.memory = WorkingMemory(
-        input_size=self.output_size,
-        mem_size=self.mem_size,
-        cell_size=self.w,
-        read_heads=self.r,
-        gpu_id=self.gpu_id
-    )
+    for layer in range(self.num_layers):
+      if self.mode == 'RNN':
+        self.rnns.append(nn.RNNCell(self.input_size, self.output_size, bias=self.bias, nonlinearity=self.nonlinearity))
+      elif self.mode == 'GRU':
+        self.rnns.append(nn.GRUCell(self.input_size, self.output_size, bias=self.bias))
+      elif self.mode == 'LSTM':
+        self.rnns.append(nn.LSTMCell(self.input_size, self.output_size, bias=self.bias))
+
+      self.memories.append(
+          WorkingMemory(
+              input_size=self.output_size,
+              mem_size=self.mem_size,
+              cell_size=self.w,
+              read_heads=self.r,
+              gpu_id=self.gpu_id
+          )
+      )
 
     self.mem_out = nn.Linear(self.input_size, self.output_size)
 
@@ -106,30 +112,35 @@ class DNC(nn.Module):
 
     # memory states
     if mem_hidden is None:
-      mem_hidden = self.memory.reset(nr_batches)
+      mem_hidden = [m.reset(nr_batches) for m in self.memories]
     else:
-      mem_hidden = self.memory.reset(nr_batches, mem_hidden)
+      mem_hidden = [m.reset(nr_batches, h) for m, h in zip(self.memories, mem_hidden)]
 
-    outputs = []
     # batched forward pass per element / word / etc
+    outputs = []
     for i in range(max_length):
-      # concat input and last read vectors
       inp = T.cat([input[:, i, :], last_read], 1)
-      controller_hidden = self.rnn(inp, controller_hidden)
-      if self.mode == 'LSTM':
-        (out, cells) = controller_hidden
-      else:
-        out = controller_hidden
 
-      # pass through memory module
-      read_vectors, mem_hidden = self.memory(out, mem_hidden)
-      last_read = read_vectors.view(-1, self.w * self.r)
+      for l in range(self.num_layers):
+        log.error(l)
+        print(inp.size())
+        # concat input and last read vectors
+        controller_hidden = self.rnns[l](inp, controller_hidden)
+        if self.mode == 'LSTM':
+          (out, cells) = controller_hidden
+        else:
+          out = controller_hidden
 
-      # get the final output
-      mem_encoded = T.cat([out, last_read], 1)
-      mem_encoded = self.mem_out(mem_encoded)
-      outputs.append(mem_encoded)
+        # pass through memory module
+        read_vectors, mem_hidden[l] = self.memories[l](out, mem_hidden[l])
+        last_read = read_vectors.view(-1, self.w * self.r)
 
+        # get the final output
+        mem_encoded = T.cat([out, last_read], 1)
+        # output of this layer goes to next layer as input
+        inp = mem_encoded
+
+      outputs.append(self.mem_out(inp))
     outputs = T.cat([o.unsqueeze(1) for o in outputs], 1)
 
     if not self.batch_first:
@@ -137,4 +148,4 @@ class DNC(nn.Module):
     if is_packed:
       outputs = pack(output, lengths)
 
-    return outputs, (controller_hidden, mem_hidden, )
+    return outputs, (controller_hidden, mem_hidden, last_read)

@@ -36,13 +36,13 @@ class WorkingMemory(nn.Module):
     self.write_gate_transform = nn.Linear(self.input_size, 1)
     self.read_modes_transform = nn.Linear(self.input_size, 3 * r)
 
+    self.I = cuda(1 - T.eye(m).unsqueeze(0), gpu_id=self.gpu_id)  # (1 * n * n)
+
   def reset(self, batch_size=1, hidden=None):
     m = self.mem_size
     w = self.cell_size
     r = self.read_heads
     b = batch_size
-
-    self.I = cuda(1 - T.eye(m).unsqueeze(0), gpu_id=self.gpu_id)  # (1 * n * n)
 
     if hidden is None:
       return {

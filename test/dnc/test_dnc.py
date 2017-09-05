@@ -46,3 +46,14 @@ def test_dnc_rnn():
   o, h = model(input)
 
   assert o.size() == input.size()
+
+
+def test_dnc_lstm():
+  input = var(T.randn(10, 50, 64))
+
+  model = DNC('LSTM', 64, num_layers=4, mem_size=5,
+              read_heads=2, gpu_id=-1)
+
+  o, h = model(input)
+
+  assert o.size() == input.size()
