@@ -22,7 +22,8 @@ class DNCEncoder(nn.Module):
       vocab_size=50000,
       bidirectional=False,
       mem_size=5,
-      read_heads=2
+      read_heads=2,
+      gpu_id=-1
   ):
     super(DNCEncoder, self).__init__()
     self.hidden_size = hidden_size
@@ -30,6 +31,7 @@ class DNCEncoder(nn.Module):
     self.dropout = dropout_p
     self.vocab_size = vocab_size
     self.bidirectional = bidirectional
+    self.gpu_id = gpu_id
 
     self.embedding = nn.Embedding(vocab_size, hidden_size, PAD)
     self.rnn = DNC(
@@ -39,7 +41,8 @@ class DNCEncoder(nn.Module):
         dropout=self.dropout,
         mem_size=5,
         read_heads=2,
-        batch_first=True
+        batch_first=True,
+        gpu_id=self.gpu_id
     )
 
   def forward(self, source, source_lengths, hidden=None):
