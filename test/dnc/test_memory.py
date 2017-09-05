@@ -18,12 +18,13 @@ from dnc import *
 
 
 def test_memory():
-  ξ = var(T.randn(64, (32 * 4) + (3 * 32) + (5 * 4) + 3))
-  n = WorkingMemory()
-  n.reset()
-  v, _ = n(ξ)
+  ξ = var(T.randn(64, 32))
+  # ξ = var(T.randn(64, (32 * 4) + (3 * 32) + (5 * 4) + 3))
+  n = WorkingMemory(32)
+  hx = n.reset(64)
+  v, hx = n(ξ, hx)
 
   assert v.size() == T.Size([64, 32, 4])
-  v1 = n(ξ)
+  v1, hx = n(ξ, hx)
 
   assert v1.size() == T.Size([64, 32, 4])
