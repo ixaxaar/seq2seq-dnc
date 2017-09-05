@@ -20,7 +20,7 @@ from dnc import *
 def test_memory():
   ξ = var(T.randn(64, 32))
   # ξ = var(T.randn(64, (32 * 4) + (3 * 32) + (5 * 4) + 3))
-  n = WorkingMemory(32)
+  n = Memory(32)
   hx = n.reset(64)
   v, hx = n(ξ, hx)
 

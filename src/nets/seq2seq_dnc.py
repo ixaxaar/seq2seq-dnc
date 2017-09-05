@@ -54,13 +54,14 @@ class Seq2SeqDNC(nn.Module):
         vocab_size=src_lang.n_words,
         bidirectional=self.bidirectional_encoder
     )
-    self.memory = WorkingMemory(
+    self.memory = Memory(
+        self.hidden_size,
         mem_size=self.mem_size,
         cell_size=self.cell_size,
         read_heads=self.read_heads,
         gpu_id=self.gpu_id
     )
-    self.controller = WorkingMemoryController(
+    self.controller = MemoryController(
         hidden_size=self.hidden_size,
         memory=self.memory,
         encoder=self.encoder,

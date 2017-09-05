@@ -18,7 +18,7 @@ def test_seq2seqdnctrainer():
   src = 'en'
   targ = 'de'
   shard_size = 5120
-  gpu_id = -1
+  gpu_id = 0
   processWMT(which, where, src, targ, shard_size=shard_size, gpu_id=gpu_id)
 
   trainer = Seq2seqDNCTrainer(
@@ -31,7 +31,7 @@ def test_seq2seqdnctrainer():
       attention_type='general',
       learning_rate=1.0,
       gradient_clip=10.0,
-      gpu_id=-1,
+      gpu_id=gpu_id,
       optimizer='sgd',
       bidirectional_encoder=True,
       bidirectional_decoder=False,

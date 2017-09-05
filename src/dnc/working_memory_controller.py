@@ -13,7 +13,7 @@ from util import *
 from seq2seq import Encoder
 
 
-class WorkingMemoryController(nn.Module):
+class MemoryController(nn.Module):
 
   def __init__(self,
                hidden_size,
@@ -24,7 +24,7 @@ class WorkingMemoryController(nn.Module):
                bidirectional=False,
                gpu_id=-1
                ):
-    super(WorkingMemoryController, self).__init__()
+    super(MemoryController, self).__init__()
 
     self.hidden_size = hidden_size
     self.memory = memory
@@ -42,7 +42,7 @@ class WorkingMemoryController(nn.Module):
 
     self.input_size = (self.r + 1) * self.w
     self.interface_size = (self.w * self.r) + (3 * self.w) + (5 * self.r) + 3
-    self.output_size = self.w + self.interface_size
+    self.output_size = self.w
 
     self.rnn = nn.LSTM(
         self.input_size,
@@ -52,9 +52,7 @@ class WorkingMemoryController(nn.Module):
         batch_first=True,
         bidirectional=self.bidirectional
     )
-    self.mem_output_weights = nn.Parameter(
-        torch.randn(self.w * self.r, self.hidden_size).uniform_(-0.1, 0.1)
-    )
+    self.mem_out = nn.Linear(self.input_size, self.output_size)
     self.rnn.flatten_parameters()
 
   def forward(self, input, source_lengths, hidden=(None, None, None)):
@@ -84,15 +82,15 @@ class WorkingMemoryController(nn.Module):
 
       out, interface_hidden = self.rnn(input, interface_hidden)
       out, _ = pad(out, batch_first=True)
+      ξ = out.squeeze(1)
 
-      # separate the current encoded word and the memory interface vector
-      ξ = out[:, :, self.hidden_size:].squeeze(1)
+      # forward pass through memory
       read_vectors, mem_hidden = self.memory(ξ, mem_hidden)
 
       # final output, todo: differs from deepmind's implementation
       # where they concat and then pass through a Linear
       read_vecs = read_vectors.view(-1, self.w * self.r)
-      mem_encoded = out[:, :, :self.hidden_size] + T.mm(read_vecs, self.mem_output_weights).unsqueeze(1)
-      dnc_encoded[:, x, :] = mem_encoded
+      mem_encoded = T.cat([ξ, read_vecs], 1)
+      dnc_encoded[:, x, :] = self.mem_out(mem_encoded)
 
     return dnc_encoded, (encoder_hidden, interface_hidden, mem_hidden)

@@ -65,7 +65,7 @@ class DNC(nn.Module):
         self.rnns.append(nn.LSTMCell(self.input_size, self.output_size, bias=self.bias))
 
       self.memories.append(
-          WorkingMemory(
+          Memory(
               input_size=self.output_size,
               mem_size=self.mem_size,
               cell_size=self.w,

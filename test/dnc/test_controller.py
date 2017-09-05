@@ -35,8 +35,8 @@ def test_controller():
   target_vocab_size = de_lang.n_words
 
   e = Encoder(1024, 2, vocab_size=source_vocab_size)
-  m = WorkingMemory(mem_size=50, cell_size=1024, read_heads=4, gpu_id=-1)
-  c = WorkingMemoryController(1024, m, e, n_layers=2, dropout_p=0.3, bidirectional=False, gpu_id=-1)
+  m = Memory(1024, mem_size=50, cell_size=1024, read_heads=4, gpu_id=-1)
+  c = MemoryController(1024, m, e, n_layers=2, dropout_p=0.3, bidirectional=False, gpu_id=-1)
 
   y, h = c(batch, slen)
 
