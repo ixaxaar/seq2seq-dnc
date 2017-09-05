@@ -18,7 +18,6 @@ class DNC(nn.Module):
   def __init__(
       self,
       mode,
-      # input_size,
       hidden_size,
       num_layers=1,
       bias=True,
@@ -36,7 +35,6 @@ class DNC(nn.Module):
     self.cell_size = hidden_size
 
     self.mode = mode
-    # self.input_size = input_size
     self.hidden_size = hidden_size
     self.num_layers = num_layers
     self.bias = bias
@@ -122,8 +120,6 @@ class DNC(nn.Module):
       inp = T.cat([input[:, i, :], last_read], 1)
 
       for l in range(self.num_layers):
-        log.error(l)
-        print(inp.size())
         # concat input and last read vectors
         controller_hidden = self.rnns[l](inp, controller_hidden)
         if self.mode == 'LSTM':
