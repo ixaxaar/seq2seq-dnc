@@ -74,7 +74,7 @@ class LuongSeq2SeqDNC(nn.Module):
 
   def forward(self, source, target, source_lengths, target_lengths):
     attentions = []
-    encoded, hidden = self.encoder(source, source_lengths)
+    encoded, (controller_hidden, mem_hidden, last_read) = self.encoder(source, source_lengths)
     hidden = None  # tuple([h[:self.decoder.n_layers] for h in hidden])
     batch_size = len(source)
 
@@ -90,7 +90,7 @@ class LuongSeq2SeqDNC(nn.Module):
 
     # manually unrolled
     for x in range(max(target_lengths)):
-      o, hidden, att = self.decoder(input, encoded, hidden)
+      o, hidden, att = self.decoder(input, encoded, (controller_hidden, mem_hidden, None))
       outputs[:, x, :] = o
       attentions.append(att.data.cpu().numpy())
 

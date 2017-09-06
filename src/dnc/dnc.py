@@ -27,7 +27,8 @@ class DNC(nn.Module):
       mem_size=5,
       read_heads=2,
       nonlinearity='tanh',
-      gpu_id=-1
+      gpu_id=-1,
+      clip=20
   ):
     super(DNC, self).__init__()
     # todo: separate weights and RNNs for the interface and output vectors
@@ -45,6 +46,7 @@ class DNC(nn.Module):
     self.read_heads = read_heads
     self.nonlinearity = nonlinearity
     self.gpu_id = gpu_id
+    self.clip = clip
 
     self.w = self.cell_size
     self.r = self.read_heads
@@ -76,6 +78,11 @@ class DNC(nn.Module):
 
     self.mem_out = nn.Linear(self.input_size, self.output_size)
 
+    if self.gpu_id != -1:
+      [x.cuda(self.gpu_id) for x in self.rnns]
+      [x.cuda(self.gpu_id) for x in self.memories]
+      self.mem_out.cuda(self.gpu_id)
+
   def forward(self, input, hx=(None, None, None)):
     # handle packed data
     is_packed = type(input) is PackedSequence
@@ -99,8 +106,7 @@ class DNC(nn.Module):
 
     # initialize hidden state of the controller RNN
     if controller_hidden is None:
-      controller_hidden = var(input.data.new(
-          nr_batches, self.output_size).zero_(), requires_grad=False)
+      controller_hidden = cuda(T.zeros(nr_batches, self.output_size), gpu_id=self.gpu_id)
       if self.mode == 'LSTM':
         controller_hidden = (controller_hidden, controller_hidden)
 
@@ -133,6 +139,8 @@ class DNC(nn.Module):
 
         # get the final output
         mem_encoded = T.cat([out, last_read], 1)
+        # clip the DNC output, note: this prevents DNCs from exploding into NANs
+        mem_encoded = T.clamp(mem_encoded, -self.clip, self.clip)
         # output of this layer goes to next layer as input
         inp = mem_encoded
 
