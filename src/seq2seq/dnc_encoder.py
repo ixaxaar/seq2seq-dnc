@@ -42,12 +42,17 @@ class DNCEncoder(nn.Module):
         mem_size=5,
         read_heads=2,
         batch_first=True,
-        gpu_id=self.gpu_id
+        gpu_id=self.gpu_id,
+        clip=self.vocab_size
     )
 
   def forward(self, source, source_lengths, hidden=None):
     embedded = self.embedding(source)
+    # embedded[embedded != embedded] = 0
     # packed = pack(embedded, source_lengths, batch_first=True)
+    if np.isnan(embedded.sum().cpu().data.numpy()[0]):
+      print('embedded', embedded, 'source', source)
+      print('embedding weight', self.embedding.weight)
     outputs, hidden = self.rnn(embedded, hidden)
     # outputs, _ = pad(outputs, batch_first=True)
 

@@ -169,7 +169,7 @@ class LuongSeq2SeqDNCTrainer(nn.Module):
 
     batches = math.ceil(len(indexes) / batch_size)
     for b in range(batches):
-      log.info('Training batch ' + str(b))
+      # log.info('Training batch ' + str(b) + ", last batch's loss was " + str(self.last_loss))
       # try:
       # prepare batch
       sort_order = indexes[b:b + batch_size]
@@ -196,7 +196,7 @@ class LuongSeq2SeqDNCTrainer(nn.Module):
       loss.backward()
       # clip gradient norms
       nn.utils.clip_grad_norm(
-          self.model.encoder.parameters(), self.gradient_clip)
+          self.model.parameters(), self.gradient_clip)
       nn.utils.clip_grad_norm(
           self.model.decoder.parameters(), self.gradient_clip)
       # update parameters

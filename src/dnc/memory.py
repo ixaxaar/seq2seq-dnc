@@ -73,6 +73,7 @@ class Memory(nn.Module):
   def mem_usage(self, usage, free_gates, read_weights, write_weights):
     # TODO: this is according to the deepmind implementation,
     # just that we have only one write head, hence write_weights.unsqueeze(2)
+    # write_weights = write_weights.detach()  # detach from the computation graph
     usage = usage + (1 - usage) * (1 - T.prod(1 - write_weights.unsqueeze(2), 2))
     ψ = T.prod(1 - free_gates.unsqueeze(1).expand_as(read_weights) * read_weights, 2)
     return usage * ψ

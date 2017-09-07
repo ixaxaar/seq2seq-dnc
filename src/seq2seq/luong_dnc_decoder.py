@@ -51,7 +51,8 @@ class LuongAttnDecoderDNC(nn.Module):
         mem_size=5,
         read_heads=2,
         batch_first=True,
-        gpu_id=self.gpu_id
+        gpu_id=self.gpu_id,
+        clip=vocab_size
     )
     # self.rnn.flatten_parameters()
     self.attn = Attn(attn_model, hidden_size, gpu_id=self.gpu_id)

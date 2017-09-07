@@ -38,17 +38,17 @@ def train_wmt_multimodal():
   epochs = 50
   gpu_id = 0
 
-  # s = Lang('en')
-  # t = Lang('de')
-  # s.load('../data/multi30k/en.lang')
-  # t.load('../data/multi30k/de.lang')
+  s = Lang('en')
+  t = Lang('de')
+  s.load('../data/multi30k/en.lang')
+  t.load('../data/multi30k/de.lang')
 
-  s, t = processWMT(train, where, src, targ,
-                    shard_size=shard_size, gpu_id=gpu_id)
-  processWMT(valid, where, src, targ, s, t,
-             shard_size=1000, gpu_id=gpu_id)
-  processWMT(test, where, src, targ, s, t,
-             shard_size=1000, gpu_id=gpu_id)
+  # s, t = processWMT(train, where, src, targ,
+  #                   shard_size=shard_size, gpu_id=gpu_id)
+  # processWMT(valid, where, src, targ, s, t,
+  #            shard_size=1000, gpu_id=gpu_id)
+  # processWMT(test, where, src, targ, s, t,
+  #            shard_size=1000, gpu_id=gpu_id)
   # processWMT('supersmall', where, src, targ, s, t, shard_size=10, gpu_id=gpu_id)
 
   trainer = LuongSeq2SeqDNCTrainer(
@@ -61,6 +61,7 @@ def train_wmt_multimodal():
       mem_size=mem_size,
       read_heads=read_heads
   )
+  log.info('Training with model:\n' + str(trainer))
 
   # trainer = T.load(where+'/50epochs/luong-seq2seq-epoch-49-dot-loss-0.20151005685329437.model')
   # trainer.model.encoder.gru.flatten_parameters()

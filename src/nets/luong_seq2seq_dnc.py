@@ -52,15 +52,15 @@ class LuongSeq2SeqDNC(nn.Module):
         read_heads=self.read_heads,
         gpu_id=self.gpu_id
     )
-    self.decoder = LuongAttnDecoderDNC(
+    self.decoder = LuongAttnDecoderRNN(
         attention_type,
         hidden_size,
         n_layers,
         vocab_size=targ_lang.n_words,
         gpu_id=gpu_id,
-        bidirectional=self.bidirectional_decoder,
-        mem_size=self.mem_size,
-        read_heads=self.read_heads
+        bidirectional=self.bidirectional_decoder
+        # mem_size=self.mem_size,
+        # read_heads=self.read_heads
     )
     if gpu_id != -1:
       self.encoder.cuda(gpu_id)
@@ -74,7 +74,11 @@ class LuongSeq2SeqDNC(nn.Module):
 
   def forward(self, source, target, source_lengths, target_lengths):
     attentions = []
+    # print("passing through encoder")
     encoded, (controller_hidden, mem_hidden, last_read) = self.encoder(source, source_lengths)
+    # print('source', source.sum(), 'source_lengths', sum(source_lengths), 'encoded', encoded.sum())
+    # print("======================================================================")
+    # encoded, controller_hidden = self.encoder(source, source_lengths)
     hidden = None  # tuple([h[:self.decoder.n_layers] for h in hidden])
     batch_size = len(source)
 
@@ -90,7 +94,7 @@ class LuongSeq2SeqDNC(nn.Module):
 
     # manually unrolled
     for x in range(max(target_lengths)):
-      o, hidden, att = self.decoder(input, encoded, (controller_hidden, mem_hidden, None))
+      o, hidden, att = self.decoder(input, encoded, hidden)
       outputs[:, x, :] = o
       attentions.append(att.data.cpu().numpy())
 
