@@ -51,12 +51,12 @@ class DNC(nn.Module):
     self.w = self.cell_size
     self.r = self.read_heads
 
-    self.input_size = self.w  # (self.r + 1) *
-    # self.interface_size = (self.w * self.r) + (3 * self.w) + (5 * self.r) + 3
-    self.output_size = self.hidden_size
+    self.input_size = (self.r + 1) * self.w
+    self.interface_size = (self.w * self.r) + (3 * self.w) + (5 * self.r) + 3
+    self.output_size = self.hidden_size + self.interface_size
 
     self.rnns = []
-    # self.memories = []
+    self.memories = []
 
     for layer in range(self.num_layers):
       if self.mode == 'RNN':
@@ -66,21 +66,21 @@ class DNC(nn.Module):
       elif self.mode == 'LSTM':
         self.rnns.append(nn.LSTMCell(self.input_size, self.output_size, bias=self.bias))
 
-      # self.memories.append(
-      #     Memory(
-      #         input_size=self.output_size,
-      #         mem_size=self.mem_size,
-      #         cell_size=self.w,
-      #         read_heads=self.r,
-      #         gpu_id=self.gpu_id
-      #     )
-      # )
+      self.memories.append(
+          Memory(
+              input_size=self.output_size,
+              mem_size=self.mem_size,
+              cell_size=self.w,
+              read_heads=self.r,
+              gpu_id=self.gpu_id
+          )
+      )
 
     for layer in range(self.num_layers):
       setattr(self, 'rnn_layer_' + str(layer), self.rnns[layer])
       # setattr(self, 'memory_' + str(layer), self.memories[layer])
 
-    self.mem_out = nn.Linear(self.input_size, self.output_size)
+    self.mem_out = nn.Linear(self.input_size, self.hidden_size)
 
     if self.gpu_id != -1:
       [x.cuda(self.gpu_id) for x in self.rnns]
@@ -119,62 +119,47 @@ class DNC(nn.Module):
       last_read = var(input.data.new(nr_batches, self.w * self.r).zero_())
 
     # memory states
-    # if mem_hidden is None:
-    #   mem_hidden = [m.reset(nr_batches) for m in self.memories]
-    # else:
-    #   mem_hidden = [m.reset(nr_batches, h) for m, h in zip(self.memories, mem_hidden)]
+    if mem_hidden is None:
+      mem_hidden = [m.reset(nr_batches) for m in self.memories]
+    else:
+      mem_hidden = [m.reset(nr_batches, h) for m, h in zip(self.memories, mem_hidden)]
 
     # batched forward pass per element / word / etc
     outputs = []
-    hxs = []
-    outs = [input[:, x, :] for x in range(max_length)]
+    # hxs = []
+    read_vectors = [last_read] * max_length
+    outs = [T.cat([input[:, x, :], last_read], 1) for x in range(max_length)]
+
     for layer in range(self.num_layers):
-      cx = controller_hidden
+      chx = controller_hidden
+      # hxt = []
       for time in range(max_length):
-        inp = outs[time]
-        cx = self.rnns[layer](inp, cx)
+        # pass through controller layer
+        chx = self.rnns[layer](outs[time], chx)
         if self.mode == 'LSTM':
-          (out, cells) = cx
+          (out, cells) = chx
         else:
-          out = cx
-        outs[time] = out
+          out = chx
+
+        # separate output and interface vectors
+        ξ = out[:, self.hidden_size:]
+        out = out[:, :self.hidden_size]
+
+        # pass through memory layer
+        read_vecs, mem_hidden[layer] = self.memories[layer](ξ, mem_hidden[layer])
+        read_vectors[time] = read_vecs.view(-1, self.w * self.r)
+
+        # get the final output for this time step
+        outs[time] = T.cat([out, read_vectors[time]], 1)
+        # outs[time] = T.clamp(outs[time], -self.clip, self.clip)
+        # hxt.append(chx)
+      # hxs.append(T.stack(hxt, 0))
 
         # retain the last layer's outputs
         if layer == self.num_layers - 1:
           outputs.append(self.mem_out(outs[time]))
 
-    # for i in range(max_length):
-    #   # inp = T.cat([input[:, i, :], last_read], 1)
-    #   inp = input[:, i, :]
-
-    #   for l in range(self.num_layers):
-    #     # concat input and last read vectors
-    #     controller_hidden = self.rnns[l](inp, controller_hidden)
-    #     if self.mode == 'LSTM':
-    #       (out, cells) = controller_hidden
-    #     else:
-    #       out = controller_hidden
-
-    #     # pass through memory module
-    #     # read_vectors, mem_hidden[l] = self.memories[l](out, mem_hidden[l])
-    #     # last_read = read_vectors.view(-1, self.w * self.r)
-
-    #     # print('input[:, i, :]', input[:, i, :].sum().cpu().data.numpy(),
-    #     #       'out', out.sum().cpu().data.numpy(),
-    #     #       'last_read', last_read.sum().cpu().data.numpy(),
-    #     #       'inp', inp.sum().cpu().data.numpy(),
-    #     #       'controller_hidden', str([x.sum().cpu().data.numpy() for x in controller_hidden]))
-    #     # get the final output
-    #     # mem_encoded = T.cat([out, last_read], 1)
-    #     # clip the DNC output, note: this prevents DNCs from exploding into NANs
-    #     # mem_encoded = T.clamp(mem_encoded, -self.clip, self.clip)
-    #     # output of this layer goes to next layer as input
-    #     # inp = mem_encoded
-    #     inp = out
-
-      # outputs.append(self.mem_out(inp))
     outputs = T.cat([o.unsqueeze(1) for o in outputs], 1)
-    # print('outputs', outputs.sum())
 
     if not self.batch_first:
       outputs = outputs.transpose(0, 1)

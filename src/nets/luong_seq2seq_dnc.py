@@ -76,6 +76,7 @@ class LuongSeq2SeqDNC(nn.Module):
     attentions = []
     # print("passing through encoder")
     encoded, (controller_hidden, mem_hidden, last_read) = self.encoder(source, source_lengths)
+    # print('encoded', encoded.size())
     # print('source', source.sum(), 'source_lengths', sum(source_lengths), 'encoded', encoded.sum())
     # print("======================================================================")
     # encoded, controller_hidden = self.encoder(source, source_lengths)
