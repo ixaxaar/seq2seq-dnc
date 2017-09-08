@@ -78,7 +78,7 @@ class DNC(nn.Module):
 
     for layer in range(self.num_layers):
       setattr(self, 'rnn_layer_' + str(layer), self.rnns[layer])
-      # setattr(self, 'memory_' + str(layer), self.memories[layer])
+      setattr(self, 'rnn_layer_memory_' + str(layer), self.memories[layer])
 
     self.mem_out = nn.Linear(self.input_size, self.hidden_size)
 
@@ -110,7 +110,7 @@ class DNC(nn.Module):
 
     # initialize hidden state of the controller RNN
     if controller_hidden is None:
-      controller_hidden = cuda(T.zeros(nr_batches, self.output_size), gpu_id=self.gpu_id)
+      controller_hidden = cuda(T.zeros(self.num_layers, nr_batches, self.output_size), gpu_id=self.gpu_id)
       if self.mode == 'LSTM':
         controller_hidden = (controller_hidden, controller_hidden)
 
@@ -126,15 +126,17 @@ class DNC(nn.Module):
 
     # batched forward pass per element / word / etc
     outputs = []
-    # hxs = []
+    hxs = []
     read_vectors = [last_read] * max_length
     outs = [T.cat([input[:, x, :], last_read], 1) for x in range(max_length)]
 
     for layer in range(self.num_layers):
-      chx = controller_hidden
-      # hxt = []
+      # this layer's hidden states
+      chx = [x[layer] for x in controller_hidden]
+
+      # for all time steps for this layer:
       for time in range(max_length):
-        # pass through controller layer
+        # pass through controller
         chx = self.rnns[layer](outs[time], chx)
         if self.mode == 'LSTM':
           (out, cells) = chx
@@ -145,21 +147,31 @@ class DNC(nn.Module):
         ξ = out[:, self.hidden_size:]
         out = out[:, :self.hidden_size]
 
-        # pass through memory layer
+        # pass through memory
         read_vecs, mem_hidden[layer] = self.memories[layer](ξ, mem_hidden[layer])
         read_vectors[time] = read_vecs.view(-1, self.w * self.r)
 
         # get the final output for this time step
         outs[time] = T.cat([out, read_vectors[time]], 1)
         # outs[time] = T.clamp(outs[time], -self.clip, self.clip)
-        # hxt.append(chx)
-      # hxs.append(T.stack(hxt, 0))
 
         # retain the last layer's outputs
         if layer == self.num_layers - 1:
           outputs.append(self.mem_out(outs[time]))
 
-    outputs = T.cat([o.unsqueeze(1) for o in outputs], 1)
+      # store the hidden states after all timesteps for each layer
+      hxs.append(chx)
+
+    # final hidden values
+    if self.mode == 'LSTM':
+      h = T.stack([h[0] for h in hxs], 1)
+      c = T.stack([h[1] for h in hxs], 1)
+      controller_hidden = (h, c)
+    else:
+      controller_hidden = T.stack(hxs, 1)
+
+    # final outputs
+    outputs = T.stack(outputs, 1)
 
     if not self.batch_first:
       outputs = outputs.transpose(0, 1)

@@ -62,7 +62,10 @@ class LuongAttnDecoderDNC(nn.Module):
   def forward(self, input, encoder_outputs, hidden=None):
     batch_size = input.size()[0]
     embedded = self.embedding(input)
-    embedded = self.embedding_dropout(embedded)
+    if np.isnan(embedded.sum().cpu().data.numpy()[0]):
+      print('decoder embedded', embedded, 'input', input)
+      print('decoder embedding weight', self.embedding.weight)
+    # embedded = self.embedding_dropout(embedded)
 
     # batch_size * 1 * hidden_size
     dec_outs, hidden = self.rnn(embedded, hidden)
@@ -73,15 +76,17 @@ class LuongAttnDecoderDNC(nn.Module):
     #       dec_outs[:, :, self.hidden_size:]
 
     # calculate the attention context vector
-    attn_weights = self.attn(dec_outs, encoder_outputs)
-    context = attn_weights.bmm(encoder_outputs)
+    # attn_weights = self.attn(dec_outs, encoder_outputs)
+    # context = attn_weights.bmm(encoder_outputs)
 
-    # Finally concatenate and pass through a linear layer
-    concated_input = T.cat((dec_outs, context), 2)
-    concated_out = self.concat(concated_input.squeeze(1)).unsqueeze(1)
-    concat_output = None
+    # # Finally concatenate and pass through a linear layer
+    # concated_input = T.cat((dec_outs, context), 2)
+    # concated_out = self.concat(concated_input.squeeze(1)).unsqueeze(1)
+    # concat_output = None
+    attn_weights = None
+
     try:
-      concat_output = self.output(F.tanh(concated_out))
+      concat_output = self.output(F.tanh(dec_outs))
     except Exception as e:
       print(concated_out.size(), concated_out)
 

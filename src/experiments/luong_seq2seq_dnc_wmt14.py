@@ -106,9 +106,9 @@ def train_wmt_multimodal():
       attns.append(last_attention)
 
     try:
-      T.save(trainer, where + '/' + 'luong-seq2seq-epoch-' + str(epoch) + '-' +
+      T.save(trainer.model, where + '/' + 'luong-seq2seq-epoch-' + str(epoch) + '-' +
              'dot' + '-loss-' + str(trainer.last_loss) + '.model')
-      T.save(trainer.state_dict(), where + '/' + 'luong-seq2seq-epoch-' + str(epoch) + '-' +
+      T.save(trainer.model.state_dict(), where + '/' + 'luong-seq2seq-epoch-' + str(epoch) + '-' +
              'dot' + '-loss-' + str(trainer.last_loss) + '-state-dict.model')
     except Exception as e:
       print(e)

@@ -48,6 +48,7 @@ class DNCEncoder(nn.Module):
 
   def forward(self, source, source_lengths, hidden=None):
     embedded = self.embedding(source)
+    # print('source', source.size())
     # embedded[embedded != embedded] = 0
     # packed = pack(embedded, source_lengths, batch_first=True)
     if np.isnan(embedded.sum().cpu().data.numpy()[0]):

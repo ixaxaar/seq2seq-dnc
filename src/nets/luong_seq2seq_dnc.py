@@ -27,7 +27,9 @@ class LuongSeq2SeqDNC(nn.Module):
       bidirectional_encoder=True,
       bidirectional_decoder=False,
       mem_size=5,
-      read_heads=2
+      read_heads=2,
+      encoder_type='dnc',
+      decoder_type='lstm'
   ):
     super(LuongSeq2SeqDNC, self).__init__()
 
@@ -42,45 +44,67 @@ class LuongSeq2SeqDNC(nn.Module):
     self.bidirectional_decoder = bidirectional_decoder
     self.mem_size = mem_size
     self.read_heads = read_heads
+    self.encoder_type = encoder_type
+    self.decoder_type = decoder_type
 
-    self.encoder = DNCEncoder(
-        hidden_size,
-        n_layers,
-        vocab_size=src_lang.n_words,
-        bidirectional=self.bidirectional_encoder,
-        mem_size=self.mem_size,
-        read_heads=self.read_heads,
-        gpu_id=self.gpu_id
-    )
-    self.decoder = LuongAttnDecoderRNN(
-        attention_type,
-        hidden_size,
-        n_layers,
-        vocab_size=targ_lang.n_words,
-        gpu_id=gpu_id,
-        bidirectional=self.bidirectional_decoder
-        # mem_size=self.mem_size,
-        # read_heads=self.read_heads
-    )
+    if self.encoder_type == 'dnc':
+      self.encoder = DNCEncoder(
+          hidden_size,
+          n_layers,
+          vocab_size=src_lang.n_words,
+          bidirectional=self.bidirectional_encoder,
+          mem_size=self.mem_size,
+          read_heads=self.read_heads,
+          gpu_id=self.gpu_id
+      )
+    else:
+      self.encoder = Encoder(
+          hidden_size,
+          n_layers,
+          vocab_size=src_lang.n_words,
+          bidirectional=self.bidirectional_encoder
+      )
+    if self.decoder_type == 'dnc':
+      self.decoder = LuongAttnDecoderDNC(
+          attention_type,
+          hidden_size,
+          n_layers,
+          vocab_size=targ_lang.n_words,
+          gpu_id=gpu_id,
+          bidirectional=self.bidirectional_decoder,
+          mem_size=self.mem_size,
+          read_heads=self.read_heads
+      )
+    else:
+      self.decoder = LuongAttnDecoderRNN(
+          attention_type,
+          hidden_size,
+          n_layers,
+          vocab_size=targ_lang.n_words,
+          gpu_id=gpu_id,
+          bidirectional=self.bidirectional_decoder
+      )
     if gpu_id != -1:
       self.encoder.cuda(gpu_id)
       self.decoder.cuda(gpu_id)
-
-  # def save(where):
-  #     self.encoder.
 
   def _teacher_force(self):
     return np.random.choice([False, True], p=[1 - self.teacher_forcing_ratio, self.teacher_forcing_ratio])
 
   def forward(self, source, target, source_lengths, target_lengths):
     attentions = []
-    # print("passing through encoder")
-    encoded, (controller_hidden, mem_hidden, last_read) = self.encoder(source, source_lengths)
-    # print('encoded', encoded.size())
-    # print('source', source.sum(), 'source_lengths', sum(source_lengths), 'encoded', encoded.sum())
-    # print("======================================================================")
-    # encoded, controller_hidden = self.encoder(source, source_lengths)
-    hidden = None  # tuple([h[:self.decoder.n_layers] for h in hidden])
+    # pass through the encoder
+    if self.encoder_type == 'dnc':
+      encoded, (controller_hidden, mem_hidden, last_read) = self.encoder(source, source_lengths)
+      # print('controller_hidden', [x.size() for x in controller_hidden])
+      hidden = None
+    else:
+      encoded, controller_hidden = self.encoder(source, source_lengths)
+      if self.decoder_type == self.encoder_type:
+        hidden = tuple([h[:self.decoder.n_layers] for h in controller_hidden])
+
+    # uncomment for dummy encoder input
+    # encoded = cuda(T.zeros(source.size(0), source.size(1), self.hidden_size), gpu_id=self.gpu_id)
     batch_size = len(source)
 
     outputs = cuda(
@@ -97,11 +121,11 @@ class LuongSeq2SeqDNC(nn.Module):
     for x in range(max(target_lengths)):
       o, hidden, att = self.decoder(input, encoded, hidden)
       outputs[:, x, :] = o
-      attentions.append(att.data.cpu().numpy())
+      # attentions.append(att.data.cpu().numpy())
 
-      if self._teacher_force():
-        input = target[:, x].unsqueeze(1).long()
-      else:
-        input = var(o.data.topk(1)[0].squeeze(1).long())
+      # if self._teacher_force():
+      #   input = target[:, x].unsqueeze(1).long()
+      # else:
+      input = var(o.data.topk(1)[0].squeeze(1).long())
 
     return outputs, np.array(attentions)
