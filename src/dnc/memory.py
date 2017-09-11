@@ -49,8 +49,8 @@ class Memory(nn.Module):
     if hidden is None:
       return {
           'memory': cuda(T.zeros(b, m, w).fill_(δ), gpu_id=self.gpu_id),
-          'link_matrix': cuda(T.zeros(b, m, m), gpu_id=self.gpu_id),
-          'precedence': cuda(T.zeros(b, m), gpu_id=self.gpu_id),
+          'link_matrix': cuda(T.zeros(b, 1, m, m), gpu_id=self.gpu_id),
+          'precedence': cuda(T.zeros(b, 1, m), gpu_id=self.gpu_id),
           'read_weights': cuda(T.zeros(b, r, m).fill_(δ), gpu_id=self.gpu_id),
           'write_weights': cuda(T.zeros(b, 1, m).fill_(δ), gpu_id=self.gpu_id),
           'usage_vector': cuda(T.zeros(b, m), gpu_id=self.gpu_id)
@@ -84,11 +84,12 @@ class Memory(nn.Module):
 
     # update usage after allocating
     usage += ((1 - usage) * write_gate * allocation_weights)
-    return allocation_weights, usage
+    return allocation_weights.unsqueeze(1), usage
 
   def write_weighting(self, memory, write_content_weights, allocation_weights, write_gate, allocation_gate):
     ag = allocation_gate.unsqueeze(-1)
     wg = write_gate.unsqueeze(-1)
+
     return wg * (ag * allocation_weights + (1 - ag) * write_content_weights)
 
   def get_link_matrix(self, link_matrix, write_weights, precedence):
@@ -99,7 +100,7 @@ class Memory(nn.Module):
     prev_scale = 1 - write_weights_i - write_weights_j
     new_link_matrix = write_weights_i * precedence
 
-    link_matrix = (prev_scale * link_matrix + new_link_matrix).squeeze(4).squeeze(1)
+    link_matrix = prev_scale * link_matrix + new_link_matrix
     # elaborate trick to delete diag elems
     return self.I.expand_as(link_matrix) * link_matrix
 
@@ -121,7 +122,7 @@ class Memory(nn.Module):
     # get memory allocation
     alloc, hidden['usage_vector'] = self.allocate(
         hidden['usage_vector'],
-        hidden['allocation_gate'] * hidden['write_gate']
+        allocation_gate * write_gate
     )
 
     # get write weightings
@@ -137,16 +138,17 @@ class Memory(nn.Module):
     reset_gate = T.prod(1 - weighted_resets, 1)
     # Update memory
     hidden['memory'] = hidden['memory'] * reset_gate
+
     hidden['memory'] = hidden['memory'] + \
         T.bmm(hidden['write_weights'].transpose(1, 2), write_vector)
 
     # update link_matrix
     hidden['link_matrix'] = self.get_link_matrix(
         hidden['link_matrix'],
-        write_weights,
+        hidden['write_weights'],
         hidden['precedence']
     )
-    hidden['precedence'] = self.update_precedence(hidden['precedence'], write_weights)
+    hidden['precedence'] = self.update_precedence(hidden['precedence'], hidden['write_weights'])
 
     return hidden
 
@@ -158,16 +160,16 @@ class Memory(nn.Module):
   def directional_weightings(self, link_matrix, read_weights):
     rw = read_weights.unsqueeze(1)
 
-    f = T.bmm(link_matrix, read_weights.transpose(1, 2))
-    b = T.bmm(read_weights.transpose(1, 2), link_matrix).transpose(1, 2)
-    return f, b
+    f = T.matmul(link_matrix, rw.transpose(2, 3)).transpose(2, 3)
+    b = T.matmul(rw, link_matrix)
+    return f.transpose(1, 2), b.transpose(1, 2)
 
   def read_weightings(self, memory, content_weights, link_matrix, read_modes, read_weights):
     forward_weight, backward_weight = self.directional_weightings(link_matrix, read_weights)
 
     content_mode = read_modes[:, :, 2].contiguous().unsqueeze(2) * content_weights
-    backward_mode = T.sum(read_modes[:, :, 0].contiguous().unsqueeze(3) * backward_weight, 2)
-    forward_mode = T.sum(read_modes[:, :, 1].contiguous().unsqueeze(3) * forward_weight, 2)
+    backward_mode = T.sum(read_modes[:, :, 0:1].contiguous().unsqueeze(3) * backward_weight, 2)
+    forward_mode = T.sum(read_modes[:, :, 1:2].contiguous().unsqueeze(3) * forward_weight, 2)
 
     return backward_mode + content_mode + forward_mode
 
@@ -175,7 +177,7 @@ class Memory(nn.Module):
     return T.bmm(read_weights, memory)
 
   def read(self, read_keys, read_strengths, read_modes, hidden):
-    content_weights = self.content_weightings(memory, read_keys, read_strengths)
+    content_weights = self.content_weightings(hidden['memory'], read_keys, read_strengths)
 
     hidden['read_weights'] = self.read_weightings(
         hidden['memory'],
@@ -196,8 +198,8 @@ class Memory(nn.Module):
     b = ξ.size()[0]
 
     if self.use_linear:
-      # r read keys (b * w * r)
-      read_keys = self.read_keys_transform(ξ).view(b, w, r)
+      # r read keys (b * r * w)
+      read_keys = self.read_keys_transform(ξ).view(b, r, w)
       # r read strengths (b * r)
       read_strengths = self.read_strengths_transform(ξ).view(b, r)
       # write key (b * 1 * w)

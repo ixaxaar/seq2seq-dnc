@@ -48,9 +48,6 @@ def θ(a, b, dimA=2, dimB=2, normBy=2):
   a_norm = T.norm(a, normBy, dimA, keepdim=True).expand_as(a) + δ
   b_norm = T.norm(b, normBy, dimB, keepdim=True).expand_as(b) + δ
 
-  print(a.size(), b.size())
-  print('T.bmm(a, b.transpose(1, 2))', T.bmm(a, b.transpose(1, 2)))
-
   return T.bmm(a, b.transpose(1, 2)).transpose(1, 2) / (
       T.bmm(a_norm, b_norm.transpose(1, 2)).transpose(1, 2) + δ)
 
