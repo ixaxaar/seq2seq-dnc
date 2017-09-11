@@ -27,6 +27,7 @@ class LuongSeq2SeqDNC(nn.Module):
       bidirectional_encoder=True,
       bidirectional_decoder=False,
       mem_size=5,
+      cell_size=10,
       read_heads=2,
       encoder_type='dnc',
       decoder_type='lstm'
@@ -43,6 +44,7 @@ class LuongSeq2SeqDNC(nn.Module):
     self.bidirectional_encoder = bidirectional_encoder
     self.bidirectional_decoder = bidirectional_decoder
     self.mem_size = mem_size
+    self.cell_size = cell_size
     self.read_heads = read_heads
     self.encoder_type = encoder_type
     self.decoder_type = decoder_type
@@ -54,6 +56,7 @@ class LuongSeq2SeqDNC(nn.Module):
           vocab_size=src_lang.n_words,
           bidirectional=self.bidirectional_encoder,
           mem_size=self.mem_size,
+          cell_size=self.cell_size,
           read_heads=self.read_heads,
           gpu_id=self.gpu_id
       )
@@ -73,6 +76,7 @@ class LuongSeq2SeqDNC(nn.Module):
           gpu_id=gpu_id,
           bidirectional=self.bidirectional_decoder,
           mem_size=self.mem_size,
+          cell_size=self.cell_size,
           read_heads=self.read_heads
       )
     else:

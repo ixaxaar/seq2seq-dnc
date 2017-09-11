@@ -29,6 +29,7 @@ class LuongAttnDecoderDNC(nn.Module):
       vocab_size=50000,
       bidirectional=False,
       mem_size=5,
+      cell_size=10,
       read_heads=2,
       gpu_id=-1
   ):
@@ -42,6 +43,7 @@ class LuongAttnDecoderDNC(nn.Module):
     self.bidirectional = bidirectional
     self.mem_size = mem_size
     self.read_heads = read_heads
+    self.cell_size = cell_size
 
     self.embedding = nn.Embedding(vocab_size, hidden_size, PAD)
     self.embedding_dropout = nn.Dropout(dropout_p)
@@ -51,6 +53,7 @@ class LuongAttnDecoderDNC(nn.Module):
         num_layers=self.n_layers,
         dropout=self.dropout,
         nr_cells=self.mem_size,
+        cell_size=self.cell_size,
         read_heads=self.read_heads,
         batch_first=True,
         gpu_id=self.gpu_id,

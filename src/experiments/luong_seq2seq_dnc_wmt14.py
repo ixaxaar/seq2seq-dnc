@@ -33,6 +33,7 @@ def train_wmt_multimodal():
   bidirectional_encoder = True
   bidirectional_decoder = False
   mem_size = 5
+  cell_size = 50
   read_heads = 2
 
   epochs = 50
@@ -59,6 +60,7 @@ def train_wmt_multimodal():
       bidirectional_encoder=bidirectional_encoder,
       bidirectional_decoder=bidirectional_decoder,
       mem_size=mem_size,
+      cell_size=cell_size,
       read_heads=read_heads
   )
   log.info('Training with model:\n' + str(trainer))

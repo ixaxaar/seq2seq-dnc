@@ -37,6 +37,7 @@ class LuongSeq2SeqDNCTrainer(nn.Module):
       bidirectional_encoder=True,
       bidirectional_decoder=False,
       mem_size=5,
+      cell_size=10,
       read_heads=2
   ):
     super(LuongSeq2SeqDNCTrainer, self).__init__()
@@ -58,13 +59,14 @@ class LuongSeq2SeqDNCTrainer(nn.Module):
     self.optim = optimizer
     self.mem_size = mem_size
     self.read_heads = read_heads
+    self.cell_size = cell_size
 
     self.last_loss = 0
 
     self.model = LuongSeq2SeqDNC(self.src_lang, self.targ_lang, self.n_layers, self.hidden_size,
                                  self.teacher_forcing_ratio, self.attention_type, self.gpu_id,
                                  bidirectional_encoder, bidirectional_decoder,
-                                 mem_size=self.mem_size, read_heads=self.read_heads)
+                                 mem_size=self.mem_size, cell_size=self.cell_size, read_heads=self.read_heads)
     self.loss = MaskedCrossEntropy(self.gpu_id)
 
     self.encoder_optimizer = DecayingOptimizer(
