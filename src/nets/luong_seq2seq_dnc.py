@@ -93,11 +93,13 @@ class LuongSeq2SeqDNC(nn.Module):
 
   def forward(self, source, target, source_lengths, target_lengths):
     attentions = []
-    # pass through the encoder
+    # pass through the encoder and get hidden state of its last layer
     if self.encoder_type == 'dnc':
       encoded, (controller_hidden, mem_hidden, last_read) = self.encoder(source, source_lengths)
-      # print('controller_hidden', [x.size() for x in controller_hidden])
-      hidden = None
+      if self.decoder_type == 'dnc':
+        hidden = (controller_hidden, mem_hidden, last_read)
+      else:
+        hidden = None
     else:
       encoded, controller_hidden = self.encoder(source, source_lengths)
       if self.decoder_type == self.encoder_type:

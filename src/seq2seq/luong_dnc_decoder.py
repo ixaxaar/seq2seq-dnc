@@ -40,6 +40,8 @@ class LuongAttnDecoderDNC(nn.Module):
     self.output_size = vocab_size
     self.gpu_id = gpu_id
     self.bidirectional = bidirectional
+    self.mem_size = mem_size
+    self.read_heads = read_heads
 
     self.embedding = nn.Embedding(vocab_size, hidden_size, PAD)
     self.embedding_dropout = nn.Dropout(dropout_p)
@@ -48,8 +50,8 @@ class LuongAttnDecoderDNC(nn.Module):
         self.hidden_size,
         num_layers=self.n_layers,
         dropout=self.dropout,
-        mem_size=5,
-        read_heads=2,
+        nr_cells=self.mem_size,
+        read_heads=self.read_heads,
         batch_first=True,
         gpu_id=self.gpu_id,
         clip=vocab_size
@@ -63,31 +65,25 @@ class LuongAttnDecoderDNC(nn.Module):
     batch_size = input.size()[0]
     embedded = self.embedding(input)
     if np.isnan(embedded.sum().cpu().data.numpy()[0]):
-      print('decoder embedded', embedded, 'input', input)
-      print('decoder embedding weight', self.embedding.weight)
-    # embedded = self.embedding_dropout(embedded)
+      raise Exception('nan detected in embedding')
+    embedded = self.embedding_dropout(embedded)
 
     # batch_size * 1 * hidden_size
     dec_outs, hidden = self.rnn(embedded, hidden)
 
     # sum the bidirectional outputs
-    # if self.bidirectional:
-    #   dec_outs = dec_outs[:, :, :self.hidden_size] + \
-    #       dec_outs[:, :, self.hidden_size:]
+    if self.bidirectional:
+      dec_outs = dec_outs[:, :, :self.hidden_size] + \
+          dec_outs[:, :, self.hidden_size:]
 
     # calculate the attention context vector
-    # attn_weights = self.attn(dec_outs, encoder_outputs)
-    # context = attn_weights.bmm(encoder_outputs)
+    attn_weights = self.attn(dec_outs, encoder_outputs)
+    context = attn_weights.bmm(encoder_outputs)
 
-    # # Finally concatenate and pass through a linear layer
-    # concated_input = T.cat((dec_outs, context), 2)
-    # concated_out = self.concat(concated_input.squeeze(1)).unsqueeze(1)
-    # concat_output = None
-    attn_weights = None
+    # Finally concatenate and pass through a linear layer
+    concated_input = T.cat((dec_outs, context), 2)
+    concated_out = self.concat(concated_input.squeeze(1)).unsqueeze(1)
 
-    try:
-      concat_output = self.output(F.tanh(dec_outs))
-    except Exception as e:
-      print(concated_out.size(), concated_out)
+    concat_output = self.output(F.tanh(dec_outs))
 
     return (concat_output, hidden, attn_weights)

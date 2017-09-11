@@ -25,11 +25,11 @@ def train_wmt_multimodal():
   n_layers = 2
   n_hidden = 500
   attention_type = 'general'
-  learning_rate = 1.0
+  learning_rate = 1e-4
   clip = 5.0
   teacher_forcing_ratio = 0.0
-  batch_size = 128
-  optim = 'sgd'
+  batch_size = 10
+  optim = 'rmsprop'
   bidirectional_encoder = True
   bidirectional_decoder = False
   mem_size = 5
