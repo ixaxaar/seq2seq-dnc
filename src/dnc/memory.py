@@ -12,7 +12,7 @@ from dnc import *
 
 class Memory(nn.Module):
 
-  def __init__(self, input_size, mem_size=512, cell_size=32, read_heads=4, gpu_id=-1):
+  def __init__(self, input_size, mem_size=512, cell_size=32, read_heads=4, gpu_id=-1, use_linear=True):
     super(Memory, self).__init__()
 
     self.mem_size = mem_size
@@ -20,21 +20,23 @@ class Memory(nn.Module):
     self.read_heads = read_heads
     self.gpu_id = gpu_id
     self.input_size = input_size
+    self.use_linear = use_linear
 
     m = self.mem_size
     w = self.cell_size
     r = self.read_heads
 
-    # self.read_keys_transform = nn.Linear(self.input_size, w * r).cuda(gpu_id)
-    # self.read_strengths_transform = nn.Linear(self.input_size, r).cuda(gpu_id)
-    # self.write_key_transform = nn.Linear(self.input_size, w).cuda(gpu_id)
-    # self.write_strength_transform = nn.Linear(self.input_size, 1).cuda(gpu_id)
-    # self.erase_vector_transform = nn.Linear(self.input_size, w).cuda(gpu_id)
-    # self.write_vector_transform = nn.Linear(self.input_size, w).cuda(gpu_id)
-    # self.free_gates_transform = nn.Linear(self.input_size, r).cuda(gpu_id)
-    # self.allocation_gate_transform = nn.Linear(self.input_size, 1).cuda(gpu_id)
-    # self.write_gate_transform = nn.Linear(self.input_size, 1).cuda(gpu_id)
-    # self.read_modes_transform = nn.Linear(self.input_size, 3 * r).cuda(gpu_id)
+    if self.use_linear:
+      self.read_keys_transform = nn.Linear(self.input_size, w * r)
+      self.read_strengths_transform = nn.Linear(self.input_size, r)
+      self.write_key_transform = nn.Linear(self.input_size, w)
+      self.write_strength_transform = nn.Linear(self.input_size, 1)
+      self.erase_vector_transform = nn.Linear(self.input_size, w)
+      self.write_vector_transform = nn.Linear(self.input_size, w)
+      self.free_gates_transform = nn.Linear(self.input_size, r)
+      self.allocation_gate_transform = nn.Linear(self.input_size, 1)
+      self.write_gate_transform = nn.Linear(self.input_size, 1)
+      self.read_modes_transform = nn.Linear(self.input_size, 3 * r)
 
   def reset(self, batch_size=1, hidden=None):
     m = self.mem_size
@@ -82,21 +84,12 @@ class Memory(nn.Module):
     # ensure values are not too small prior to cumprod.
     usage = δ + (1 - δ) * usage
     # free list
-    sorted_usage, φ = T.sort(usage, descending=False)
+    sorted_usage, φ = T.topk(usage, self.mem_size, dim=1, largest=False)
     # TODO: these are actually shifted cumprods, tensorflow has exclusive=True
-    sorted_allocation_weights = (1 - sorted_usage) * T.cumprod(sorted_usage, dim=1)
+    sorted_allocation_weights = (1 - sorted_usage) * fake_cumprod(sorted_usage).squeeze()
     # construct the reverse sorting index https://stackoverflow.com/questions/2483696/undo-or-reverse-argsort-python
-    φ_rev = cuda(T.zeros(φ.size()), gpu_id=self.gpu_id)
-
-    # todo: fix this mess
-    x = None
-    if self.gpu_id == -1:
-      x = cuda(T.arange(0, φ_rev.size()[1], 1).unsqueeze(0).expand_as(φ), gpu_id=self.gpu_id)
-    else:
-      x = T.arange(0, φ_rev.size()[1], 1).unsqueeze(0).expand_as(φ).cuda(self.gpu_id)
-    φ_rev.scatter_(1, φ, x)
-
-    allocation_weights = sorted_allocation_weights.gather(1, φ_rev.long())
+    _, φ_rev = T.topk(φ, k=self.mem_size, dim=1, largest=False)
+    allocation_weights = sorted_allocation_weights.gather(1, φ.long())
     return allocation_weights
 
   def write_weighting(self, memory, write_content_weights, allocation_weights, write_gate, allocation_gate):
@@ -144,6 +137,7 @@ class Memory(nn.Module):
         allocation_gate
     )
 
+    # we only have 1 write head
     write_weights = hidden['write_weights'].unsqueeze(2)
     write_vector = write_vector.unsqueeze(1)
     erase_vector = erase_vector.unsqueeze(1)
@@ -201,47 +195,48 @@ class Memory(nn.Module):
     r = self.read_heads
     b = ξ.size()[0]
 
-    # # r read keys (b * w * r)
-    # read_keys = self.read_keys_transform(ξ).view(b, w, r)
-    # # r read strengths (b * r)
-    # read_strengths = oneplus(self.read_strengths_transform(ξ).view(b, r))
-    # # write key (b * w * 1)
-    # write_key = self.write_key_transform(ξ).view(b, w, 1)
-    # # write strength (b * 1)
-    # write_strength = oneplus(self.write_strength_transform(ξ).view(b, 1))
-    # # erase vector (b * w)
-    # erase_vector = F.sigmoid(self.erase_vector_transform(ξ).view(b, w))
-    # # write vector (b * w)
-    # write_vector = self.write_vector_transform(ξ).view(b, w)
-    # # r free gates (b * r)
-    # free_gates = F.sigmoid(self.free_gates_transform(ξ).view(b, r))
-    # # allocation gate (b * 1)
-    # allocation_gate = F.sigmoid(self.allocation_gate_transform(ξ).view(b, 1))
-    # # write gate (b * 1)
-    # write_gate = F.sigmoid(self.write_gate_transform(ξ).view(b, 1))
-    # # read modes (b * 3*r)
-    # read_modes = σ(self.read_modes_transform(ξ).view(b, 3, r), 1)
-
-    # r read keys (b * w * r)
-    read_keys = ξ[:, :r * w].contiguous().view(b, w, r)
-    # r read strengths (b * r)
-    read_strengths = oneplus(ξ[:, r * w:r * w + r].contiguous().view(b, r))
-    # write key (b * w * 1)
-    write_key = ξ[:, r * w + r:r * w + r + w].contiguous().view(b, w, 1)
-    # write strength (b * 1)
-    write_strength = oneplus(ξ[:, r * w + r + w].contiguous()).unsqueeze(1)
-    # erase vector (b * w)
-    erase_vector = F.sigmoid(ξ[:, r * w + r + w + 1: r * w + r + 2 * w + 1].contiguous())
-    # write vector (b * w)
-    write_vector = ξ[:, r * w + r + 2 * w + 1: r * w + r + 3 * w + 1].contiguous()
-    # r free gates (b * r)
-    free_gates = F.sigmoid(ξ[:, r * w + r + 3 * w + 1: r * w + 2 * r + 3 * w + 1].contiguous())
-    # allocation gate (b * 1)
-    allocation_gate = F.sigmoid(ξ[:, r * w + 2 * r + 3 * w + 1].contiguous().unsqueeze(1))
-    # write gate (b * 1)
-    write_gate = F.sigmoid(ξ[:, r * w + 2 * r + 3 * w + 2].contiguous()).unsqueeze(1)
-    # read modes (b * 3*r)
-    read_modes = σ(ξ[:, r * w + 2 * r + 3 * w + 2: r * w + 5 * r + 3 * w + 2].contiguous().view(b, 3, r), 1)
+    if self.use_linear:
+      # r read keys (b * w * r)
+      read_keys = self.read_keys_transform(ξ).view(b, w, r)
+      # r read strengths (b * r)
+      read_strengths = self.read_strengths_transform(ξ).view(b, r)
+      # write key (b * w * 1)
+      write_key = self.write_key_transform(ξ).view(b, w, 1)
+      # write strength (b * 1)
+      write_strength = self.write_strength_transform(ξ).view(b, 1)
+      # erase vector (b * w)
+      erase_vector = F.sigmoid(self.erase_vector_transform(ξ).view(b, w))
+      # write vector (b * w)
+      write_vector = self.write_vector_transform(ξ).view(b, w)
+      # r free gates (b * r)
+      free_gates = F.sigmoid(self.free_gates_transform(ξ).view(b, r))
+      # allocation gate (b * 1)
+      allocation_gate = F.sigmoid(self.allocation_gate_transform(ξ).view(b, 1))
+      # write gate (b * 1)
+      write_gate = F.sigmoid(self.write_gate_transform(ξ).view(b, 1))
+      # read modes (b * 3*r)
+      read_modes = σ(self.read_modes_transform(ξ).view(b, 3, r), 1)
+    else:
+      # r read keys (b * w * r)
+      read_keys = ξ[:, :r * w].contiguous().view(b, w, r)
+      # r read strengths (b * r)
+      read_strengths = oneplus(ξ[:, r * w:r * w + r].contiguous().view(b, r))
+      # write key (b * w * 1)
+      write_key = ξ[:, r * w + r:r * w + r + w].contiguous().view(b, w, 1)
+      # write strength (b * 1)
+      write_strength = oneplus(ξ[:, r * w + r + w].contiguous()).unsqueeze(1)
+      # erase vector (b * w)
+      erase_vector = F.sigmoid(ξ[:, r * w + r + w + 1: r * w + r + 2 * w + 1].contiguous())
+      # write vector (b * w)
+      write_vector = ξ[:, r * w + r + 2 * w + 1: r * w + r + 3 * w + 1].contiguous()
+      # r free gates (b * r)
+      free_gates = F.sigmoid(ξ[:, r * w + r + 3 * w + 1: r * w + 2 * r + 3 * w + 1].contiguous())
+      # allocation gate (b * 1)
+      allocation_gate = F.sigmoid(ξ[:, r * w + 2 * r + 3 * w + 1].contiguous().unsqueeze(1))
+      # write gate (b * 1)
+      write_gate = F.sigmoid(ξ[:, r * w + 2 * r + 3 * w + 2].contiguous()).unsqueeze(1)
+      # read modes (b * 3*r)
+      read_modes = σ(ξ[:, r * w + 2 * r + 3 * w + 2: r * w + 5 * r + 3 * w + 2].contiguous().view(b, 3, r), 1)
 
     hidden = self.write(write_key, write_vector, erase_vector, free_gates,
                         read_strengths, write_strength, write_gate, allocation_gate, hidden)
