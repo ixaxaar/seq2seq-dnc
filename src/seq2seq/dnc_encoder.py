@@ -32,6 +32,8 @@ class DNCEncoder(nn.Module):
     self.vocab_size = vocab_size
     self.bidirectional = bidirectional
     self.gpu_id = gpu_id
+    self.mem_size = mem_size
+    self.read_heads = read_heads
 
     self.embedding = nn.Embedding(vocab_size, hidden_size, PAD)
     self.rnn = DNC(
@@ -39,8 +41,8 @@ class DNCEncoder(nn.Module):
         self.hidden_size,
         num_layers=self.n_layers,
         dropout=self.dropout,
-        mem_size=5,
-        read_heads=2,
+        nr_cells=self.mem_size,
+        read_heads=self.read_heads,
         batch_first=True,
         gpu_id=self.gpu_id,
         clip=self.vocab_size
@@ -48,14 +50,9 @@ class DNCEncoder(nn.Module):
 
   def forward(self, source, source_lengths, hidden=None):
     embedded = self.embedding(source)
-    # print('source', source.size())
-    # embedded[embedded != embedded] = 0
-    # packed = pack(embedded, source_lengths, batch_first=True)
     if np.isnan(embedded.sum().cpu().data.numpy()[0]):
-      print('embedded', embedded, 'source', source)
-      print('embedding weight', self.embedding.weight)
+      raise Exception('nan detected in embedding')
     outputs, hidden = self.rnn(embedded, hidden)
-    # outputs, _ = pad(outputs, batch_first=True)
 
     # sum the bidirectional outputs
     # if self.bidirectional:
