@@ -48,74 +48,67 @@ class Memory(nn.Module):
 
     if hidden is None:
       return {
-          # linear memory (b * m * w)
           'memory': cuda(T.zeros(b, m, w).fill_(δ), gpu_id=self.gpu_id),
-          # associative linkages (b * m * m)
-          'temporal': cuda(T.zeros(b, m, m), gpu_id=self.gpu_id),
-          # 'semantic' : cuda(T.zeros(b, m, m), gpu_id=self.gpu_id)
-          'temporal_weights': cuda(T.zeros(b, m), gpu_id=self.gpu_id),
-          # 'semantic_weights' : cuda(T.zeros(b, m), gpu_id=self.gpu_id)
-          'read_weights': cuda(T.zeros(b, m, r).fill_(δ), gpu_id=self.gpu_id),
-          'write_weights': cuda(T.zeros(b, m).fill_(δ), gpu_id=self.gpu_id),
-          # 'read_vector' : cuda(T.zeros(b, w, r).fill_(δ), self.gpu_id=self.gpu_id)
+          'link_matrix': cuda(T.zeros(b, m, m), gpu_id=self.gpu_id),
+          'precedence': cuda(T.zeros(b, m), gpu_id=self.gpu_id),
+          'read_weights': cuda(T.zeros(b, r, m).fill_(δ), gpu_id=self.gpu_id),
+          'write_weights': cuda(T.zeros(b, 1, m).fill_(δ), gpu_id=self.gpu_id),
           'usage_vector': cuda(T.zeros(b, m), gpu_id=self.gpu_id)
       }
     else:
       hidden['memory'].data.fill_(δ)
-      hidden['temporal'].data.fill_(δ)
-      # hidden['semantic'].data.fill_(δ)
-      hidden['temporal_weights'].data.fill_(δ)
-      # hidden['semantic_weights'].data.fill_(δ)
+      hidden['link_matrix'].data.fill_(δ)
+      hidden['precedence'].data.fill_(δ)
       hidden['read_weights'].data.fill_(δ)
       hidden['write_weights'].data.fill_(δ)
-      # hidden['read_vector'].data.fill_(δ)
       hidden['usage_vector'].data.fill_(δ)
     return hidden
 
-  def mem_usage(self, usage, free_gates, read_weights, write_weights):
-    # TODO: this is according to the deepmind implementation,
-    # just that we have only one write head, hence write_weights.unsqueeze(2)
+  def get_usage_vector(self, usage, free_gates, read_weights, write_weights):
     # write_weights = write_weights.detach()  # detach from the computation graph
-    usage = usage + (1 - usage) * (1 - T.prod(1 - write_weights.unsqueeze(2), 2))
-    ψ = T.prod(1 - free_gates.unsqueeze(1).expand_as(read_weights) * read_weights, 2)
+    usage = usage + (1 - usage) * (1 - T.prod(1 - write_weights, 1))
+    ψ = T.prod(1 - free_gates.unsqueeze(2) * read_weights, 1)
     return usage * ψ
 
-  def allocation(self, usage):
+  def allocate(self, usage, write_gate):
     # ensure values are not too small prior to cumprod.
     usage = δ + (1 - δ) * usage
     # free list
     sorted_usage, φ = T.topk(usage, self.mem_size, dim=1, largest=False)
     # TODO: these are actually shifted cumprods, tensorflow has exclusive=True
+    # fix once pytorch issue is fixed
     sorted_allocation_weights = (1 - sorted_usage) * fake_cumprod(sorted_usage).squeeze()
     # construct the reverse sorting index https://stackoverflow.com/questions/2483696/undo-or-reverse-argsort-python
     _, φ_rev = T.topk(φ, k=self.mem_size, dim=1, largest=False)
     allocation_weights = sorted_allocation_weights.gather(1, φ.long())
-    return allocation_weights
+
+    # update usage after allocating
+    usage += ((1 - usage) * write_gate * allocation_weights)
+    return allocation_weights, usage
 
   def write_weighting(self, memory, write_content_weights, allocation_weights, write_gate, allocation_gate):
-    ag = allocation_gate.expand_as(allocation_weights)
-    wg = write_gate.expand_as(allocation_weights)
-    return wg * (ag * allocation_weights + (1 - ag) * write_content_weights.squeeze(2))
+    ag = allocation_gate.unsqueeze(-1)
+    wg = write_gate.unsqueeze(-1)
+    return wg * (ag * allocation_weights + (1 - ag) * write_content_weights)
 
-  def get_link_matrix(self, temporal, write_weight, temporal_weights):
-    write_weight = write_weight.unsqueeze(1)  # only one head (b * 1 * m * m)
-    temporal_weights = temporal_weights.unsqueeze(2)
-    write_weights_i = write_weight.unsqueeze(3)
-    write_weights_j = write_weight.unsqueeze(2)
+  def get_link_matrix(self, link_matrix, write_weights, precedence):
+    precedence = precedence.unsqueeze(2)
+    write_weights_i = write_weights.unsqueeze(3)
+    write_weights_j = write_weights.unsqueeze(2)
 
     prev_scale = 1 - write_weights_i - write_weights_j
-    new_temporal = write_weights_i * temporal_weights
+    new_link_matrix = write_weights_i * precedence
 
-    temporal = (prev_scale * temporal + new_temporal).squeeze(4).squeeze(1)
+    link_matrix = (prev_scale * link_matrix + new_link_matrix).squeeze(4).squeeze(1)
     # elaborate trick to delete diag elems
-    return self.I.expand_as(temporal) * temporal
+    return self.I.expand_as(link_matrix) * link_matrix
 
-  def update_precedence(self, precedence, write_weight):
-    return (1 - T.sum(write_weight, 1)).expand_as(precedence) * precedence + write_weight
+  def update_precedence(self, precedence, write_weights):
+    return (1 - T.sum(write_weights, 2, keepdim=True)) * precedence + write_weights
 
   def write(self, write_key, write_vector, erase_vector, free_gates, read_strengths, write_strength, write_gate, allocation_gate, hidden):
     # get current usage
-    hidden['usage_vector'] = self.mem_usage(
+    hidden['usage_vector'] = self.get_usage_vector(
         hidden['usage_vector'],
         free_gates,
         hidden['read_weights'],
@@ -126,7 +119,10 @@ class Memory(nn.Module):
     write_content_weights = self.content_weightings(hidden['memory'], write_key, write_strength)
 
     # get memory allocation
-    alloc = self.allocation(hidden['usage_vector'])
+    alloc, hidden['usage_vector'] = self.allocate(
+        hidden['usage_vector'],
+        hidden['allocation_gate'] * hidden['write_gate']
+    )
 
     # get write weightings
     hidden['write_weights'] = self.write_weighting(
@@ -137,50 +133,54 @@ class Memory(nn.Module):
         allocation_gate
     )
 
-    # we only have 1 write head
-    write_weights = hidden['write_weights'].unsqueeze(2)
-    write_vector = write_vector.unsqueeze(1)
-    erase_vector = erase_vector.unsqueeze(1)
-
+    weighted_resets = hidden['write_weights'].unsqueeze(3) * erase_vector.unsqueeze(2)
+    reset_gate = T.prod(1 - weighted_resets, 1)
     # Update memory
-    hidden['memory'] = hidden['memory'] * (1 - T.bmm(write_weights, erase_vector))
-    hidden['memory'] = hidden['memory'] + T.bmm(write_weights, write_vector)
+    hidden['memory'] = hidden['memory'] * reset_gate
+    hidden['memory'] = hidden['memory'] + \
+        T.bmm(hidden['write_weights'].transpose(1, 2), write_vector)
 
     # update link_matrix
-    hidden['temporal'] = self.get_link_matrix(hidden['temporal'], write_weights, hidden['temporal_weights'])
-    hidden['temporal_weights'] = self.update_precedence(hidden['temporal_weights'], write_weights)
+    hidden['link_matrix'] = self.get_link_matrix(
+        hidden['link_matrix'],
+        write_weights,
+        hidden['precedence']
+    )
+    hidden['precedence'] = self.update_precedence(hidden['precedence'], write_weights)
 
     return hidden
 
   def content_weightings(self, memory, keys, strengths):
-    d = θ(memory, keys, dimB=2)  # b * m * r
-    strengths = F.softplus(strengths).unsqueeze(1)
-    return σ(d * strengths, 1)
+    d = θ(memory, keys)
+    strengths = F.softplus(strengths).unsqueeze(2)
+    return σ(d * strengths, 2)
 
   def directional_weightings(self, link_matrix, read_weights):
-    f = T.bmm(link_matrix, read_weights)
-    b = T.bmm(link_matrix.transpose(1, 2), read_weights)
+    rw = read_weights.unsqueeze(1)
+
+    f = T.bmm(link_matrix, read_weights.transpose(1, 2))
+    b = T.bmm(read_weights.transpose(1, 2), link_matrix).transpose(1, 2)
     return f, b
 
-  def read_weightings(self, memory, read_keys, read_strengths, link_matrix, read_modes, read_weights):
-    c = self.content_weightings(memory, read_keys, read_strengths)
+  def read_weightings(self, memory, content_weights, link_matrix, read_modes, read_weights):
     forward_weight, backward_weight = self.directional_weightings(link_matrix, read_weights)
 
-    content_mode = read_modes[:, 1, :].contiguous().unsqueeze(1).expand_as(c) * c
-    backward_mode = read_modes[:, 0, :].contiguous().unsqueeze(1).expand_as(backward_weight) * backward_weight
-    forward_mode = read_modes[:, 2, :].contiguous().unsqueeze(1).expand_as(forward_weight) * forward_weight
+    content_mode = read_modes[:, :, 2].contiguous().unsqueeze(2) * content_weights
+    backward_mode = T.sum(read_modes[:, :, 0].contiguous().unsqueeze(3) * backward_weight, 2)
+    forward_mode = T.sum(read_modes[:, :, 1].contiguous().unsqueeze(3) * forward_weight, 2)
 
     return backward_mode + content_mode + forward_mode
 
   def read_vectors(self, memory, read_weights):
-    return T.bmm(memory.transpose(1, 2), read_weights)
+    return T.bmm(read_weights, memory)
 
   def read(self, read_keys, read_strengths, read_modes, hidden):
+    content_weights = self.content_weightings(memory, read_keys, read_strengths)
+
     hidden['read_weights'] = self.read_weightings(
         hidden['memory'],
-        read_keys,
-        read_strengths,
-        hidden['temporal'],
+        content_weights,
+        hidden['link_matrix'],
         read_modes,
         hidden['read_weights']
     )
@@ -204,18 +204,18 @@ class Memory(nn.Module):
       write_key = self.write_key_transform(ξ).view(b, w, 1)
       # write strength (b * 1)
       write_strength = self.write_strength_transform(ξ).view(b, 1)
-      # erase vector (b * w)
-      erase_vector = F.sigmoid(self.erase_vector_transform(ξ).view(b, w))
-      # write vector (b * w)
-      write_vector = self.write_vector_transform(ξ).view(b, w)
+      # erase vector (b * 1 * w)
+      erase_vector = F.sigmoid(self.erase_vector_transform(ξ).view(b, 1, w))
+      # write vector (b * 1 * w)
+      write_vector = self.write_vector_transform(ξ).view(b, 1, w)
       # r free gates (b * r)
       free_gates = F.sigmoid(self.free_gates_transform(ξ).view(b, r))
       # allocation gate (b * 1)
       allocation_gate = F.sigmoid(self.allocation_gate_transform(ξ).view(b, 1))
       # write gate (b * 1)
       write_gate = F.sigmoid(self.write_gate_transform(ξ).view(b, 1))
-      # read modes (b * 3*r)
-      read_modes = σ(self.read_modes_transform(ξ).view(b, 3, r), 1)
+      # read modes (b * r * 3)
+      read_modes = σ(self.read_modes_transform(ξ).view(b, r, 3), 1)
     else:
       # r read keys (b * w * r)
       read_keys = ξ[:, :r * w].contiguous().view(b, w, r)

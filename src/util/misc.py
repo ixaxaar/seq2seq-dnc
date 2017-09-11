@@ -29,26 +29,30 @@ def normalize(s):
   return s
 
 
-def θ(a, b, dimA=2, dimB=1, normBy=2):
+def θ(a, b, dimA=2, dimB=2, normBy=2):
   """Batchwise Cosine distance
 
   Cosine distance
 
   Arguments:
       a {Tensor} -- A 3D Tensor (b * m * w)
-      b {Tensor} -- A 3D Tensor (b * w * r)
+      b {Tensor} -- A 3D Tensor (b * r * w)
 
   Keyword Arguments:
       dimA {number} -- exponent value of the norm for `a` (default: {2})
       dimB {number} -- exponent value of the norm for `b` (default: {1})
 
   Returns:
-      Tensor -- Batchwise cosine distance (b * m * r)
+      Tensor -- Batchwise cosine distance (b * r * m)
   """
   a_norm = T.norm(a, normBy, dimA, keepdim=True).expand_as(a) + δ
   b_norm = T.norm(b, normBy, dimB, keepdim=True).expand_as(b) + δ
 
-  return T.bmm(a, b) / (T.bmm(a_norm, b_norm) + δ)
+  print(a.size(), b.size())
+  print('T.bmm(a, b.transpose(1, 2))', T.bmm(a, b.transpose(1, 2)))
+
+  return T.bmm(a, b.transpose(1, 2)).transpose(1, 2) / (
+      T.bmm(a_norm, b_norm.transpose(1, 2)).transpose(1, 2) + δ)
 
 
 def σ(input, axis=1):
