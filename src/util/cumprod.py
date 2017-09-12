@@ -11,7 +11,7 @@ from torch.autograd import Variable
 # https://discuss.pytorch.org/t/cumprod-exclusive-true-equivalences/2614/8https://discuss.pytorch.org/t/cumprod-exclusive-true-equivalences/2614/8
 
 
-def fake_cumprod(vb):
+def fake_cumprod(vb, gpu_id):
   """
   args:
       vb:  [hei x wid]
@@ -20,6 +20,10 @@ def fake_cumprod(vb):
   # real_cumprod = torch.cumprod(vb.data, 1)
   vb = vb.unsqueeze(0)
   mul_mask_vb = Variable(torch.zeros(vb.size(2), vb.size(1), vb.size(2))).type_as(vb)
+
+  if gpu_id != -1:
+    mul_mask_vb = mul_mask_vb.cuda(gpu_id)
+
   for i in range(vb.size(2)):
     mul_mask_vb[i, :, :i + 1] = 1
   add_mask_vb = 1 - mul_mask_vb
