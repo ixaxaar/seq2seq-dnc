@@ -32,7 +32,10 @@ def pad_seq(seq, max_len=MAX_LENGTH):
   if pad > 0:
     return np.concatenate([seq, np.zeros((pad))])
   else:
-    return seq[0:max_len]
+    h = seq[0]  # SOS
+    t = seq[-1]  # EOS
+    m = seq[1:max_len - 1]
+    return np.concatenate([[h], m, [t]])
 
 
 def mk_sentence(sentence, lang):
@@ -116,6 +119,9 @@ def pack_batch(pairs, source_lang, target_lang, cuda_device=0):
   # initial lengths
   source_lengths = [len(s) + 2 for s in source]
   target_lengths = [len(s) + 2 for s in target]
+  # limit the max lengths
+  source_lengths = [x if x <= MAX_LENGTH else MAX_LENGTH for x in source_lengths]
+  target_lengths = [x if x <= MAX_LENGTH else MAX_LENGTH for x in target_lengths]
   # vectorize the batch
   idxs, source, target = mk_batch(source, target, source_lang, target_lang)
   # sorted lengths
