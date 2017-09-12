@@ -77,7 +77,7 @@ class Memory(nn.Module):
     sorted_usage, φ = T.topk(usage, self.mem_size, dim=1, largest=False)
     # TODO: these are actually shifted cumprods, tensorflow has exclusive=True
     # fix once pytorch issue is fixed
-    sorted_allocation_weights = (1 - sorted_usage) * fake_cumprod(sorted_usage).squeeze()
+    sorted_allocation_weights = (1 - sorted_usage) * fake_cumprod(sorted_usage, self.gpu_id).squeeze()
     # construct the reverse sorting index https://stackoverflow.com/questions/2483696/undo-or-reverse-argsort-python
     _, φ_rev = T.topk(φ, k=self.mem_size, dim=1, largest=False)
     allocation_weights = sorted_allocation_weights.gather(1, φ.long())
