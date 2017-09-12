@@ -29,6 +29,7 @@ def processWMT(which, where, src, targ, src_lang=None, targ_lang=None, shard_siz
   targ_lang = targ_lang if targ_lang is not None else index_corpus(targ, where, which + '.' + targ)
   log.info('Loading shards...')
 
+  blank_lines_found = 0
   with open(where + '/' + which + '.' + src) as source:
     with open(where + '/' + which + '.' + targ) as target:
       done = False
@@ -40,7 +41,11 @@ def processWMT(which, where, src, targ, src_lang=None, targ_lang=None, shard_siz
           t = normalize(target.readline())
           sentence_pairs.append([s, t])
           if s == '':
-            done = True
+            blank_lines_found += 1
+            if blank_lines_found > 1:
+              done = True
+          else:
+            blank_lines_found = 0
 
         idxs, s, t, s_lens, t_lens = \
             pack_batch(sentence_pairs, src_lang,
