@@ -204,4 +204,4 @@ class DNC(nn.Module):
     if is_packed:
       outputs = pack(output, lengths)
 
-    return outputs, (controller_hidden, mem_hidden, read_vectors)
+    return outputs, (controller_hidden, mem_hidden, read_vectors[-1])
