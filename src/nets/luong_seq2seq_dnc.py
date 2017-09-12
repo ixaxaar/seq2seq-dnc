@@ -101,12 +101,15 @@ class LuongSeq2SeqDNC(nn.Module):
     if self.encoder_type == 'dnc':
       encoded, (controller_hidden, mem_hidden, last_read) = self.encoder(source, source_lengths)
       if self.decoder_type == 'dnc':
-        hidden = (controller_hidden, mem_hidden, last_read)
-      else:
+        # hidden = (controller_hidden, mem_hidden, last_read)
         hidden = None
+      else:
+        hidden = controller_hidden
     else:
       encoded, controller_hidden = self.encoder(source, source_lengths)
-      if self.decoder_type == self.encoder_type:
+      if self.decoder_type == 'dnc':
+        hidden = (controller_hidden, None, None)
+      elif self.decoder_type == self.encoder_type:
         hidden = tuple([h[:self.decoder.n_layers] for h in controller_hidden])
 
     # uncomment for dummy encoder input
