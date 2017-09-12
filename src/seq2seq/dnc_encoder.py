@@ -53,8 +53,6 @@ class DNCEncoder(nn.Module):
 
   def forward(self, source, source_lengths, hidden=None):
     embedded = self.embedding(source)
-    if np.isnan(embedded.sum().cpu().data.numpy()[0]):
-      raise Exception('nan detected in embedding')
     outputs, hidden = self.rnn(embedded, hidden)
 
     # sum the bidirectional outputs
