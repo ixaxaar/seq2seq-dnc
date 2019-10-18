@@ -24,7 +24,7 @@ pyparsing==2.2.0
 pytest==3.2.1
 python-dateutil==2.6.1
 pytz==2017.2
-PyYAML==3.12
+PyYAML==5.1
 regex==2017.7.28
 requests==2.18.4
 scipy==0.19.1
