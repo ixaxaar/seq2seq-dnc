@@ -7,7 +7,7 @@ cycler==0.10.0
 ftfy==5.1.1
 gensim==2.3.0
 idna==2.6
-Jinja2==2.9.6
+Jinja2==2.11.3
 langcodes==1.4.0
 livereload==2.5.1
 marisa-trie==0.7.4
